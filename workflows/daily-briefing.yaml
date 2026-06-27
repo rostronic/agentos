@@ -1,0 +1,33 @@
+name: daily-briefing
+description: A morning briefing — surface relevant context, research what's new, write it up.
+inputs:
+  focus:
+    type: string
+    description: What to brief on (e.g. "my active projects", "AI agent news")
+    required: true
+
+steps:
+  - id: recall
+    agent: librarian
+    prompt: |
+      Surface the most relevant recent context, open threads, and things worth
+      remembering about: {{inputs.focus}}. Be concise — bullet points.
+
+  - id: research
+    agent: researcher
+    prompt: |
+      Find anything new and noteworthy related to: {{inputs.focus}}.
+      Given this prior context:
+      {{steps.recall.output}}
+
+  - id: brief
+    agent: scribe
+    prompt: |
+      Write a tight morning briefing (markdown, < 250 words) combining the
+      context and the new findings below. Lead with what matters most.
+
+      Context:
+      {{steps.recall.output}}
+
+      New findings:
+      {{steps.research.output}}

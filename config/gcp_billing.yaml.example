@@ -1,0 +1,17 @@
+# Phase-2 LIVE GCP/Firebase cost — Cloud Billing BigQuery export -> Cost tab.
+# Copy to config/gcp_billing.yaml. Fill in AFTER enabling billing export, then:
+#     python -m agentos.cost_analytics.connectors.gcp_billing --dry-run   # preview SQL
+#     python -m agentos.cost_analytics.connectors.gcp_billing             # sync now
+# Needs: pip install google-cloud-bigquery
+#
+# GCP project id -> agentos slug mapping lives in config/cost-sources.yaml (mappings.gcp);
+# add your real project ids there. Unmapped projects still show (under the unmapped bucket).
+
+# One block per billing account that has an export (usually just one).
+billing_exports:
+  - bq_project: "BQ_PROJECT_ID"                 # GCP project holding the export dataset
+    dataset: "billing_export"                   # the BigQuery dataset you created
+    table: "gcp_billing_export_v1_XXXXXX_XXXXXX_XXXXXX"  # export table; account id with _ for -
+    credentials_path: "~/.config/agentos/gcp-billing-sa.json"  # SA key: BigQuery Data Viewer + Job User
+
+lookback_months: 6        # months of history to pull each run

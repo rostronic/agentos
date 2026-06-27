@@ -1,0 +1,55 @@
+# Project registry — the source of truth for projects AgentOS manages.
+# Copy to config/projects.yaml and replace these examples with your own projects.
+#
+# Each entry maps a project slug to:
+#   workspace    — personal | business (selects the workspace memory tier)
+#   repo_path    — where the project's code lives (e.g. ~/dev/<slug> for a project
+#                  in its own repo, or ~/agentos/workspaces/<ws>/<slug> for one that
+#                  lives inside agentos)
+#   memory_path  — project-tier memory location, RELATIVE to the agentos root
+#                  (in-repo memory model: symlink → the project repo)
+#   aliases      — alternate names that resolve to this slug
+#
+# Note: settings.yaml also has a `projects:` block — that one is for task-store
+# overrides (Linear/Convex). This file is the identity/topology registry.
+
+projects:
+  # Runnable demo shipped in examples/example-project (greeter.py + tests + memory).
+  # Register this one verbatim to walk through docs/projects-quickstart.md — its
+  # memory_path points at the in-repo example so a dispatch loads its project tier.
+  example-project:
+    workspace: business
+    repo_path: ~/agentos/examples/example-project
+    memory_path: examples/example-project
+    aliases: [example-project, demo]
+
+  example-business:
+    workspace: business
+    repo_path: ~/dev/example-business        # a project in its own repo
+    memory_path: projects/example-business
+    aliases: [example-business, eb]
+
+  example-personal:
+    workspace: personal
+    repo_path: ~/agentos/workspaces/personal/example-personal   # lives IN agentos
+    memory_path: workspaces/personal/example-personal
+    aliases: [example-personal, ep]
+
+  # Platform tooling spanning ALL projects (workspace: null = not workspace-scoped).
+  mission-control:
+    workspace: null
+    repo_path: ~/agentos
+    memory_path: projects/mission-control
+    aliases: [mission-control, missioncontrol]
+
+  # --- personal-assistant cluster (chief-of-staff + coordinator) ---
+  chief-of-staff:
+    workspace: personal
+    repo_path: ~/agentos/workspaces/personal/chief-of-staff   # the weekly planner / aide
+    memory_path: workspaces/personal/chief-of-staff
+    aliases: [chief-of-staff, cos, aide, assistant]
+  coordinator:
+    workspace: personal
+    repo_path: ~/agentos/workspaces/personal/coordinator   # the accountability enforcer
+    memory_path: workspaces/personal/coordinator
+    aliases: [coordinator, enforcer]

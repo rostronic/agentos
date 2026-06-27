@@ -1,0 +1,34 @@
+# AgentOS notification routing
+# Copy to config/notifications.yaml and enable the channels you use.
+
+channels:
+  push:
+    enabled: true          # macOS push notifications
+  telegram:
+    enabled: false         # Set to true and add token/chat_id
+    # token: ${TELEGRAM_BOT_TOKEN}
+    # chat_id: ${TELEGRAM_CHAT_ID}   # or set telegram_chat_id in config/user.yaml
+  discord:
+    enabled: false
+    # webhook_url: ${DISCORD_WEBHOOK_URL}
+  email:
+    enabled: false
+
+# Which events trigger which channels
+triggers:
+  sprint_completed:
+    channels: [push]
+  run_failed:
+    channels: [push]
+  run_repeatedly_failed:  # > 2 retries
+    channels: [push, telegram]
+  agent_blocked:          # ask_human triggered
+    channels: [push, telegram]
+  budget_80_percent:
+    channels: [push]
+  budget_exceeded:
+    channels: [push, telegram]
+  schedule_fired:
+    channels: []           # Silent by default
+  run_timeout:
+    channels: [push]

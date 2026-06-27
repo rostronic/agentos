@@ -1,0 +1,38 @@
+# AgentOS user identity — copy to config/user.yaml and fill in your own values.
+#
+#   cp config/user.yaml.example config/user.yaml
+#
+# config/user.yaml is gitignored (it holds your personal values); this .example
+# file is the tracked template. The orchestrator reads these via
+# agentos.core.config.user_config() and the convenience accessors next to it.
+
+# Your name, used in agent prompts and generated artifacts.
+name: "Your Name"
+
+# Primary account email — used for the `gog` calendar/gmail integrations
+# (meeting prep, deadlines, weekly-plan calendar apply) and the daily-brief
+# weather API User-Agent.
+email: "you@example.com"
+
+# IANA timezone, e.g. America/Los_Angeles, America/New_York, Europe/London.
+# Used when creating calendar events from the weekly plan.
+timezone: "America/Los_Angeles"
+
+# Personal workspace directory, RELATIVE to the agentos root (~/agentos).
+# The deadline radar scans markdown under here.
+personal_dir: "workspaces/personal"
+
+# Chief-of-staff working directory, RELATIVE to the agentos root. Holds the
+# weekly plan proposals, reviews, meeting-prep briefs, deadlines radar, etc.
+cos_dir: "workspaces/personal/chief-of-staff"
+
+# Telegram chat id for notifications (optional; leave blank to disable).
+telegram_chat_id: ""
+
+# Daily-brief weather location. The brief calls the US National Weather Service
+# (api.weather.gov, no auth), so use US coordinates. Find lat/lon for your city
+# at https://www.latlong.net. weather_label is the human-readable name shown in
+# the brief header. Defaults to San Francisco, CA if omitted.
+weather_lat: 37.7749
+weather_lon: -122.4194
+weather_label: "San Francisco, CA"

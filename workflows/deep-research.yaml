@@ -1,0 +1,37 @@
+name: deep-research
+description: Research a topic, critique the findings, then synthesize a clean report.
+inputs:
+  topic:
+    type: string
+    description: The subject to research
+    required: true
+
+steps:
+  - id: research
+    agent: researcher
+    prompt: |
+      Research the following topic thoroughly. Find at least 3 independent,
+      credible sources. Report findings with citations.
+
+      Topic: {{inputs.topic}}
+
+  - id: critique
+    agent: critic
+    prompt: |
+      Review the research below for gaps, unsupported claims, and missing
+      perspectives. List specific objections.
+
+      Research:
+      {{steps.research.output}}
+
+  - id: synthesize
+    agent: scribe
+    prompt: |
+      Write a clean, well-structured summary of the research below, taking the
+      critic's objections into account. Cite sources.
+
+      Research:
+      {{steps.research.output}}
+
+      Critic's objections:
+      {{steps.critique.output}}

@@ -1,0 +1,27 @@
+# Cost-source mapping — native per-source project identifiers -> registry slug.
+# Copy to config/cost-sources.yaml and map your own spend sources.
+#
+# Each spend source names projects differently and NONE of them natively use the
+# registry slug (config/projects.yaml). This table reconciles them so cross-source
+# cost can be summed per project. See docs/cost-tracking-plan.md.
+#
+# Resolution order (cost_analytics/mapping.resolve):
+#   1. exact match in mappings[source][native_id]
+#   2. heuristic: strip trailing -prod/-dev/-staging + case-insensitive match
+#      against projects.yaml slugs and their aliases
+#   3. fall back to unmapped_bucket (never drop the row)
+#
+# A mapping target that isn't a real registry slug is surfaced as a warning in
+# /api/costs (catches typos), not silently accepted.
+
+mappings:
+  claude:
+    ExampleBusiness: example-business
+    example-business: example-business
+  gcp:
+    example-business-prod: example-business
+  stripe:
+    acct_example: example-business
+
+# Fall back to this slug when no mapping matches; NEVER drop the row.
+unmapped_bucket: unmapped

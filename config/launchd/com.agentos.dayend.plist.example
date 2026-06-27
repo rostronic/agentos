@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AgentOS daily shutdown — runs `agentos day-end` at 6:00 PM local time.
+  Deterministic (file IO only); safe to run via launchd like the daily brief.
+  Copy to com.agentos.dayend.plist and replace ~/agentos with your absolute path
+  (launchd does not expand ~). Then install:
+    cp config/launchd/com.agentos.dayend.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.agentos.dayend.plist
+  Remove:
+    launchctl unload -w ~/Library/LaunchAgents/com.agentos.dayend.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agentos.dayend</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>~/agentos/orchestrator/.venv/bin/agentos</string>
+    <string>day-end</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>18</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>~/agentos/logs/dayend.log</string>
+  <key>StandardErrorPath</key>
+  <string>~/agentos/logs/dayend.err</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

@@ -1,0 +1,16 @@
+# AgentOS budget enforcement
+# Copy to config/budgets.yaml and tune for your spend.
+# The orchestrator checks these before every dispatch.
+# Budget overruns block the run and surface in /inbox.
+
+defaults:
+  daily_usd: 50.00               # Max spend per calendar day across all projects
+  per_run_usd: 2.00              # Max spend per single dispatch or workflow run
+  per_run_max_tokens: 100000     # Hard token cap per run
+  per_run_max_wall_seconds: 1800 # Max wall time per run (30 min)
+  max_workflow_depth: 3          # Max nested workflow-calls-workflow depth
+
+# Per-project overrides (stack on top of defaults, not replace)
+projects:
+  example-business:
+    daily_usd: 30.00

@@ -1,0 +1,35 @@
+# AgentOS global settings
+# Copy to config/settings.yaml and adjust for your setup.
+
+orchestrator:
+  # How Claude inference is billed:
+  #   claude_code → runs through your Max/Pro subscription via the `claude` CLI.
+  #                 NO per-token API charges. Subject to subscription rate limits.
+  #   claude_api  → metered Anthropic API. Needs ANTHROPIC_API_KEY. Pay per token.
+  default_provider: claude_code
+  default_model: claude-sonnet-4-6
+  log_level: info
+  # Max wall time per dispatch through the claude CLI (seconds).
+  # Developer/QA code tasks regularly need more than the old 300s default.
+  dispatch_timeout_seconds: 1800
+  # Permission mode for headless `claude -p` dispatches. Headless sessions
+  # cannot answer permission prompts, so without a mode no agent can ever
+  # write a file. acceptEdits auto-approves file edits inside the task
+  # worktree; shell commands stay gated except those allowlisted in the
+  # target repo's committed .claude/settings.json (npm run, npx playwright, …).
+  dispatch_permission_mode: acceptEdits
+  # Tools pre-approved beyond acceptEdits. Researcher tasks need the web —
+  # without these, WebSearch/WebFetch die at unanswerable prompts.
+  dispatch_allowed_tools: [WebSearch, WebFetch]
+
+# Per-project task store and settings
+# Overrides the global defaults for specific projects.
+# task_store options: file (default) | local | linear
+#   file/git → tracked markdown under work/ (source of truth; tasks travel with the repo)
+#   local    → legacy sqlite cache (work.sqlite)
+#   linear   → Linear adapter
+projects:
+  # Example:
+  # example-business:
+  #   task_store: linear
+  #   linear_team_id: TEAM_ABC123

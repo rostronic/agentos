@@ -1,0 +1,5 @@
+source,service,native_id,period,amount_usd,currency,note
+stripe,stripe-fee,acct_example-shop,2026-05-01,12.40,USD,May processing fees
+openai,gpt-4o,proj_news,2026-05-01,3.10,USD,enrichment calls
+elevenlabs,tts,acct_brief,2026-05-01,5.00,USD,briefing voice
+openai,gpt-4o,proj_unknown_x,2026-05-01,4.00,USD,unattributed enrichment

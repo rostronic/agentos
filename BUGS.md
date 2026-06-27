@@ -1,0 +1,22 @@
+# AgentOS — Bug Log
+
+Every bug found during build gets logged here, fixed, and covered by a
+regression test so it can't silently return. Format:
+
+| # | Phase | Symptom | Root cause | Fix | Regression test |
+|---|-------|---------|-----------|-----|-----------------|
+
+## Open
+| # | Phase | Symptom | Root cause (hypothesis) | Fix | Status |
+|---|-------|---------|------------------------|-----|--------|
+| 6 | ops | A set of external-runtime content-pipeline crons finished `status=error` "⚠️ Agent couldn't generate a response" even though the underlying script SUCCEEDED (articles ingested, milestone written). Not a timeout (runs 16–49s) and not raw stdout size (other working jobs emit ~20KB too). | The agent-turn message said "log output only" (UNBOUNDED response task) vs the working jobs' "report exit code + last 30 lines of output" (BOUNDED). With ~23KB of `--json` tool output and no bound, the external agent appears to attempt echoing the whole blob as its final response and hits an output limit → empty/failed completion. Configs were otherwise identical (agent/model/tools all default). | Rewrote the affected job payloads to "report only the exit code and the last 30 lines; do not echo full output." | **CONFIRMED FIXED** — post-fix scheduled runs all `status=ok`. |
+
+## Fixed
+| 5 | sprint | Sprint for an agentos-internal project (one living at `workspaces/personal/<slug>`) created git worktrees rooted on the WRONG repo (a legacy monorepo checkout), so agent output landed in throwaway worktrees under the old monorepo layout and looked lost; a sprint shell kill left zombie `running` runs reading "167m". | `_process_task` worktree-isolated every dev/qa task, but a project living INSIDE the agentos repo has no business getting a worktree of the orchestrator repo; git-root discovery from the session CWD (a legacy monorepo path) rooted the worktree on that monorepo. | Detect repo_path inside `AGENTOS_ROOT`; for those, skip the worktree and run IN PLACE at the real project dir (workdir = repo_path). | `test_sprint_executor.py::test_in_agentos_project_runs_in_place_no_worktree` |
+
+| # | Phase | Symptom | Root cause | Fix | Regression test |
+|---|-------|---------|-----------|-----|-----------------|
+| 1 | 6 | Answering a blocked task's inbox question left the task stuck in `blocked` forever — autonomous sprint could never resume it. | `answer_inbox()` updated only the inbox row, never the task. Nothing re-readied the task, so the next sprint pass skipped it. | Added `ask_human.answer_question()` which answers the inbox item AND re-readies the task (blocked→ready) so the next pass re-dispatches it with the answer in context. API/CLI use it. | `test_ask_human.py::test_answering_reready_blocked_task` |
+| 2 | 8 | Token usage cost/tokens inflated ~2.2× vs reality. | Claude Code writes each assistant message 2-3× to disk while streaming (snapshots as output grows). Parser summed every JSONL row instead of deduping by `message.id` (the accuracy note in Nate Herk's token-dashboard). | Parser now keys usage by `message.id`, keeping the last (complete) snapshot per id, then sums those — matches what the API actually billed. | `test_token_analytics.py::test_dedup_by_message_id` |
+| 3 | 6 | `agentos inbox --answer <id>` printed "Answered." but the inbox item stayed open and the blocked task never re-readied — sprint silently stuck. | CLI displays truncated 8-char ids and suggests answering with them, but `get_inbox_item()`/`answer_inbox()` matched on the full id only; `answer_question()` returned an error dict the CLI ignored. | `get_inbox_item()` resolves unique id prefixes (≥4 chars); `answer_question()` updates by the resolved full id; CLI surfaces the error and exits 1 instead of claiming success. | `test_ask_human.py::test_answer_by_short_id_prefix` |
+| 4 | 6 | First-ever code task: developer "completed" but no file existed; QA went looking in the wrong repo (old monorepo path). Task worktrees were never used. | `claude -p` subprocess ran with the orchestrator's cwd and no permission mode — the worktree was only prose in the prompt, and headless sessions can't answer permission prompts, so every file write was silently denied. | Threaded `workdir` through Provider→router→sprint_executor; claude_code runs the subprocess with `cwd=worktree` and `--permission-mode` from `orchestrator.dispatch_permission_mode` (acceptEdits; build/test commands allowlisted per-repo via committed `.claude/settings.json`). | `test_claude_code_provider.py::test_workdir_and_permission_mode_reach_the_cli` |

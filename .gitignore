@@ -1,0 +1,82 @@
+# Python
+orchestrator/.venv/
+orchestrator/__pycache__/
+orchestrator/**/__pycache__/
+orchestrator/**/*.pyc
+orchestrator/.ruff_cache/
+orchestrator/.pytest_cache/
+
+# Runnable demo (examples/) — ignore test/build artifacts so they never get committed
+examples/**/__pycache__/
+examples/**/*.pyc
+examples/**/.pytest_cache/
+
+# Secrets — never commit
+config/credentials/.env
+# Personal identity (template tracked as config/user.yaml.example)
+config/user.yaml
+
+# Runtime state (sqlite, caches, spend, snapshots — never commit)
+orchestrator/runtime/*
+!orchestrator/runtime/.gitkeep
+logs/
+# Generated work-layer task markdown (runtime output; regenerated from task store).
+# Keep the dir skeleton; ignore the generated contents.
+work/*
+!work/.gitkeep
+# Node deps anywhere
+node_modules/
+
+# Memory capture staging (transient; not curated memory)
+/inbox/*
+!/inbox/README.md
+!/inbox/.gitkeep
+
+# Generated daily briefings (dated output; keep the dir, ignore the files)
+/briefings/*
+!/briefings/.gitkeep
+
+# Local symlink farm for project repos (machine-specific; regenerate via `agentos link`)
+/workspace/
+
+# Project-tier memory lives in projects/<slug>/ (tracked: AGENTS.md + memory/*).
+# Raw onboarding staging under sources/ is transient — ignore it.
+/projects/*/sources/
+
+# Dashboard
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.convex/
+
+# Worktrees (managed by orchestrator)
+worktrees/
+
+# macOS
+.DS_Store
+
+# Machine-farm symlinks: projects/<slug> → repo_path for every registered project
+# (absolute, machine-specific; regenerate via `agentos link`). Ignore the whole
+# farm so no machine-specific symlink is committed. Already-tracked project-tier
+# content (e.g. projects/mission-control/) is unaffected — .gitignore only applies
+# to untracked paths — so it stays committed without being named here.
+/projects/*
+
+# Browse-farm symlinks for split business repos (they live in their own GitHub
+# repos; regenerate via `agentos link`). Same as above: already-tracked workspace
+# files (AGENTS.md, memory/) stay committed; only untracked symlinks are ignored.
+/workspaces/business/*
+
+# Personal project content IS tracked — except runtime state, credentials, and heavy media
+workspaces/personal/**/node_modules/
+workspaces/personal/**/__pycache__/
+workspaces/personal/social-travel/auth_state/
+workspaces/personal/social-travel/matchmaker_crm.db
+workspaces/personal/blm-porsche/media/
+workspaces/personal/blm-porsche/site/assets/
+.DS_Store
+
+# CWS jumbotron reference photos (local only)
+workspaces/personal/college-baseball/cws_ui_*.jpg
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json

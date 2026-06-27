@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentOS — Mission Control</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #141922; --panel2: #1b212c;
+    --border: #232b38; --text: #e2e8f0; --muted: #8a96a8; --accent: #6ea8fe;
+    --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --purple: #c4b5fd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  /* Sidebar */
+  .sidebar { background: var(--panel); border-right: 1px solid var(--border);
+    padding: 20px 12px; position: sticky; top: 0; height: 100vh; }
+  .brand { font-weight: 700; font-size: 16px; padding: 0 12px 18px; letter-spacing: .3px; }
+  .brand span { color: var(--accent); }
+  .nav-group { font-size: 11px; text-transform: uppercase; color: var(--muted);
+    padding: 14px 12px 6px; letter-spacing: .5px; }
+  .nav a { display: block; padding: 8px 12px; border-radius: 8px; color: var(--text);
+    text-decoration: none; cursor: pointer; font-size: 13.5px; }
+  .nav a:hover { background: var(--panel2); }
+  .nav a.active { background: var(--accent); color: #07101f; font-weight: 600; }
+  /* Main */
+  .main { padding: 28px 32px; max-width: 1100px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+    gap: 14px; margin-bottom: 28px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; }
+  .kpi .v { font-size: 26px; font-weight: 700; }
+  .kpi .l { color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .4px; margin-top: 2px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 14px; }
+  .card h3 { font-size: 14px; margin-bottom: 4px; }
+  .card .desc { color: var(--muted); font-size: 12.5px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .4px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  tr:hover td { background: var(--panel2); cursor: pointer; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px;
+    font-weight: 600; }
+  .s-done { background: rgba(74,222,128,.15); color: var(--green); }
+  .s-running { background: rgba(110,168,254,.15); color: var(--accent); }
+  .s-failed { background: rgba(248,113,113,.15); color: var(--red); }
+  .s-blocked { background: rgba(251,191,36,.15); color: var(--yellow); }
+  .s-queued { background: rgba(138,150,168,.15); color: var(--muted); }
+  /* Work-layer task statuses */
+  .s-backlog { background: rgba(138,150,168,.15); color: var(--muted); }
+  .s-ready { background: rgba(110,168,254,.15); color: var(--accent); }
+  .s-in_progress { background: rgba(110,168,254,.18); color: var(--accent); }
+  .s-review { background: rgba(196,181,253,.15); color: var(--purple); }
+  .s-cancelled { background: rgba(248,113,113,.12); color: var(--red); }
+  .s-active { background: rgba(74,222,128,.15); color: var(--green); }
+  .s-paused { background: rgba(251,191,36,.15); color: var(--yellow); }
+  .s-archived { background: rgba(138,150,168,.15); color: var(--muted); }
+  .prio-high { color: var(--red); font-weight: 600; }
+  .prio-medium { color: var(--yellow); }
+  .prio-low { color: var(--muted); }
+  /* Kanban board */
+  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; align-items: flex-start; }
+  .bcol { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    flex: 1 0 220px; min-width: 220px; max-width: 300px; display: flex; flex-direction: column;
+    max-height: calc(100vh - 200px); }
+  .bcol-head { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px;
+    font-weight: 600; text-transform: capitalize; display: flex; justify-content: space-between;
+    align-items: center; }
+  .bcol-head .c { color: var(--muted); font-weight: 500; }
+  .bcol-body { padding: 10px; display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto; flex: 1; min-height: 48px; }
+  .bcol-body.drop-hover { background: var(--panel2); outline: 2px dashed var(--accent); outline-offset: -4px; }
+  .bcard { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 10px; cursor: grab; }
+  .bcard:hover { border-color: var(--accent); }
+  .bcard:active { cursor: grabbing; }
+  .bcard.dragging { opacity: .45; }
+  .bcard .t { font-size: 13px; margin-bottom: 7px; }
+  .bcard .m { display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: 11px; }
+  .bcard-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 6px 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .tag { display: inline-block; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1px 7px; font-size: 11px; color: var(--muted); margin: 2px 3px 2px 0; }
+  button { background: var(--accent); color: #07101f; border: none; border-radius: 8px;
+    padding: 7px 14px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  input, textarea, select { background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 13px; width: 100%; font-family: inherit; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .feed { max-height: 320px; overflow-y: auto; }
+  .feed .ev { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px;
+    display: flex; gap: 8px; }
+  .feed .ev .t { color: var(--muted); min-width: 64px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    display: inline-block; margin-right: 6px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .empty { color: var(--muted); padding: 20px; text-align: center; }
+  .welcome { background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 24px; }
+  .welcome h3 { font-size: 15px; margin-bottom: 6px; }
+  .welcome p { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+  .welcome ol { margin: 0 0 4px 18px; font-size: 13px; }
+  .welcome li { padding: 3px 0; }
+  .welcome code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .welcome .links { margin-top: 10px; font-size: 12.5px; }
+  .welcome .links a { color: var(--accent); text-decoration: none; }
+  .back { color: var(--accent); cursor: pointer; font-size: 13px; margin-bottom: 12px; display: inline-block; }
+  pre.out { background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px; white-space: pre-wrap; font-size: 12.5px; max-height: 400px; overflow-y: auto; }
+  .billed-sub { color: var(--green); }
+  /* Bar charts (token usage) */
+  .bar-row { display: flex; align-items: center; margin-bottom: 6px; }
+  .bar-label { width: 130px; font-size: 11.5px; color: var(--muted); flex-shrink: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; margin: 0 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-value { width: 56px; font-size: 11.5px; font-weight: 600; text-align: right; }
+  /* Token page — Nate Herk token-dashboard visual language */
+  .tk { --tk-good:#3FB68B; --tk-accent:#4A9EFF; --tk-purple:#7C5CFF; --tk-warn:#E8A23B; --tk-bad:#E5484D;
+    --tk-mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .tk .subtabs { display:flex; gap:2px; margin:4px 0 18px; border-bottom:1px solid var(--border); }
+  .tk .subtabs a { padding:7px 13px; border-radius:6px 6px 0 0; color:var(--muted);
+    font-size:13px; font-weight:500; cursor:pointer; text-transform:capitalize; }
+  .tk .subtabs a:hover { color:var(--text); background:var(--panel2); }
+  .tk .subtabs a.active { color:var(--text); background:var(--panel2); border-bottom:2px solid var(--tk-accent); }
+  .tk .kpi .v { font-family:var(--tk-mono); font-variant-numeric:tabular-nums; letter-spacing:-0.03em; }
+  .tk .kpi .l { font-size:10px; letter-spacing:0.08em; }
+  .tk .kpi.cost .v { color:var(--tk-good); }
+  .tk table td.num, .tk table th.num { text-align:right; font-family:var(--tk-mono); font-variant-numeric:tabular-nums; }
+  .tk .mtag { font-family:var(--tk-mono); font-size:11px; padding:1px 6px; border-radius:4px; }
+  .tk .mtag.opus { background:rgba(124,92,255,.15); color:var(--tk-purple); }
+  .tk .mtag.sonnet { background:rgba(74,158,255,.15); color:var(--tk-accent); }
+  .tk .mtag.haiku { background:rgba(63,182,139,.15); color:var(--tk-good); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Agent<span>OS</span></div>
+    <div class="nav" id="nav">
+      <div class="nav-group">Overview</div>
+      <a data-view="home" class="active">Dashboard</a>
+      <a data-view="runs">Runs</a>
+      <div class="nav-group">Work</div>
+      <a data-view="projects">Projects</a>
+      <a data-view="tasks">Tasks</a>
+      <a data-view="board">Board</a>
+      <a data-view="inbox">Inbox <span id="inboxBadge"></span></a>
+      <div class="nav-group">Pipelines</div>
+      <a data-view="pipelines">Pipelines</a>
+      <a data-view="seo">SEO</a>
+      <div class="nav-group">Execution</div>
+      <a data-view="agents">Agents</a>
+      <a data-view="workflows">Workflows</a>
+      <div class="nav-group">Insights</div>
+      <a data-view="tokens">Token usage</a>
+      <a data-view="costs">Cost</a>
+      <a data-view="insights">Session insights</a>
+      <a data-view="briefings">Briefings</a>
+      <div class="nav-group">Live</div>
+      <a data-view="feed"><span class="dot"></span>Event feed</a>
+    </div>
+    <div id="killswitch" style="margin-top:18px;padding:10px 12px"></div>
+  </aside>
+  <main class="main" id="main">Loading…</main>
+</div>
+
+<script>
+// Dashboard is served by the AgentOS API itself, so the API is same-origin.
+const API = '';
+const $ = (s, el=document) => el.querySelector(s);
+let liveEvents = [];
+
+async function get(path) { const r = await fetch(API + path); return r.json(); }
+async function post(path, body) {
+  const r = await fetch(API + path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  return r.json();
+}
+
+function pill(status) { return `<span class="pill s-${status}">${status}</span>`; }
+function shortId(id) { return (id||'').slice(0,8); }
+function fmtTime(ts) { return (ts||'').slice(11,19); }
+
+// ---------- Views ----------
+const views = {
+  async home() {
+    const s = await get('/api/stats');
+    const runs = await get('/api/runs?limit=8');
+    const byS = s.by_status || {};
+    const firstRun = !(s.total_runs > 0) ? `
+      <div class="welcome">
+        <h3>👋 Welcome to AgentOS — nothing has run yet</h3>
+        <p>This dashboard is empty until you dispatch an agent or run a workflow.
+           Everything stays on this machine (binds to <code>127.0.0.1</code> only). To fill it in:</p>
+        <ol>
+          <li>Finish setup if you haven't: <code>agentos init</code> (writes your config + checks the provider).</li>
+          <li>Dispatch your first agent: <code>agentos dispatch researcher "find 3 sources on the Antikythera mechanism"</code></li>
+          <li>Or run a workflow: <code>agentos run deep-research --arg topic="quantum computing"</code></li>
+        </ol>
+        <div class="links">New here? Read the
+          <a href="https://github.com/rostronic/agentos/blob/main/README.md" target="_blank" rel="noopener">README quickstart</a>
+          · <a href="https://github.com/rostronic/agentos/blob/main/docs/FAQ.md" target="_blank" rel="noopener">FAQ</a>
+          · <a href="https://github.com/rostronic/agentos/blob/main/docs/projects-quickstart.md" target="_blank" rel="noopener">Projects quickstart</a></div>
+      </div>` : '';
+    return `
+      <h1>Mission Control</h1>
+      <div class="sub">Local AgentOS dashboard — reads your orchestrator's sqlite, live over SSE.</div>
+      ${firstRun}
+      <div class="kpis">
+        <div class="kpi"><div class="v">${s.total_runs||0}</div><div class="l">Total runs</div></div>
+        <div class="kpi"><div class="v" style="color:var(--accent)">${byS.running||0}</div><div class="l">Running</div></div>
+        <div class="kpi"><div class="v" style="color:var(--green)">${byS.done||0}</div><div class="l">Done</div></div>
+        <div class="kpi"><div class="v" style="color:var(--red)">${byS.failed||0}</div><div class="l">Failed</div></div>
+      </div>
+      <div class="card"><h3>Recent runs</h3>${runsTable(runs)}</div>`;
+  },
+
+  async briefings(date) {
+    const list = await get('/api/briefings');
+    if (!list.length) return `<h1>Briefings</h1>
+      <div class="sub">Your daily update from <span class="mono">agentos brief</span> (runs 8 AM).</div>
+      <div class="card"><div class="empty">No briefings yet — they appear after the 8 AM run (or <span class="mono">agentos brief</span>).</div></div>`;
+    const sel = date || list[0].date;
+    const detail = await get('/api/briefings/' + sel);
+    const opts = list.map(b => `<option value="${b.date}" ${b.date===sel?'selected':''}>${b.date}</option>`).join('');
+    return `<h1>Briefings</h1><div class="sub">Your daily update — newest first.</div>
+      <div class="card"><div class="row" style="gap:14px"><div style="flex:1"><label>Date</label>
+        <select onchange="render('briefings', this.value)">${opts}</select></div></div></div>
+      <div class="card">${mdLite(detail.content || '')}</div>`;
+  },
+
+  async runs() {
+    const runs = await get('/api/runs?limit=50');
+    return `<h1>Runs</h1><div class="sub">Every dispatch and workflow execution.</div>
+      <div class="card">${runsTable(runs)}</div>`;
+  },
+
+  async runDetail(id) {
+    const r = await get('/api/runs/' + id);
+    const events = (r.events||[]).map(e =>
+      `<div class="ev"><span class="t">${fmtTime(e.ts)}</span><span><b>${e.type}</b> ${escapeHtml(JSON.stringify(JSON.parse(e.payload||'{}')))}</span></div>`).join('');
+    const billed = r.cost_usd > 0 ? `$${r.cost_usd.toFixed(4)} (API)` : '<span class="billed-sub">subscription / $0</span>';
+    return `<span class="back" onclick="render('runs')">← Runs</span>
+      <h1>${r.agent || r.workflow_name || 'Run'} ${pill(r.status)}</h1>
+      <div class="sub mono">${r.id}</div>
+      <div class="card">
+        <div class="row" style="gap:24px;flex-wrap:wrap">
+          <div><div class="l" style="color:var(--muted);font-size:11px">MODEL</div>${r.model||'—'}</div>
+          <div><div class="l" style="color:var(--muted);font-size:11px">BILLED</div>${billed}</div>
+          <div><div class="l" style="color:var(--muted);font-size:11px">TRIGGERED BY</div>${r.triggered_by||'—'}</div>
+          <div><div class="l" style="color:var(--muted);font-size:11px">STARTED</div>${(r.started_at||'').slice(0,19)}</div>
+        </div>
+      </div>
+      ${r.output ? `<div class="card"><h3>Output</h3><pre class="out">${escapeHtml(r.output)}</pre></div>` : ''}
+      ${r.error ? `<div class="card"><h3 style="color:var(--red)">Error</h3><pre class="out">${escapeHtml(r.error)}</pre></div>` : ''}
+      <div class="card"><h3>Events (${(r.events||[]).length})</h3><div class="feed">${events||'<div class="empty">No events</div>'}</div></div>`;
+  },
+
+  async agents() {
+    const agents = await get('/api/agents');
+    return `<h1>Agents</h1><div class="sub">${agents.length} specialist agents loaded from agent.md specs.</div>
+      <div class="grid2">${agents.map(a => `
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <h3>${a.name}</h3><span class="tag">${a.model||'—'}</span>
+          </div>
+          <div class="desc">${escapeHtml(a.description||'')}</div>
+          <div style="margin-top:8px">${(a.tools||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>`).join('')}</div>`;
+  },
+
+  async workflows() {
+    const wfs = await get('/api/workflows');
+    return `<h1>Workflows</h1><div class="sub">Multi-agent recipes. Click Run to dispatch.</div>
+      <div id="wflist">${wfs.map(w => `
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <div><h3>${w.name}</h3><div class="desc">${escapeHtml(w.description||'')}</div></div>
+            <button onclick='openRun(${JSON.stringify(w).replace(/'/g,"&#39;")})'>Run ▸</button>
+          </div>
+          <div style="margin-top:8px">${w.steps.map(s=>`<span class="tag">${s.agent}</span>`).join(' → ')}</div>
+        </div>`).join('')}</div>
+      <div id="runpanel"></div>`;
+  },
+
+  async tokens() {
+    tokenData = await get('/api/tokens');
+    const subnav = ['overview','prompts','projects','tips','settings'].map(s =>
+      `<a data-tk="${s}" class="${s===tokenTab?'active':''}" onclick="tkShow('${s}')">${s}</a>`).join('');
+    return `<div class="tk">
+      <h1>Token usage</h1>
+      <div class="sub">From your Claude Code transcripts (~/.claude/projects), deduped by message id —
+        same method as <a href="https://github.com/nateherkai/token-dashboard" style="color:var(--accent)">Nate Herk's token-dashboard</a>.
+        Cost is <b>API-equivalent</b>; on your Max plan you paid the flat fee instead.</div>
+      <div class="subtabs">${subnav}</div>
+      <div id="tkbody">${tkRender(tokenData, tokenTab)}</div>
+    </div>`;
+  },
+
+  async costs() {
+    const a = await get('/api/costs');
+    const t = a.totals || {};
+    const SRC_COLORS = {gcp:'var(--tk-accent)', claude:'var(--tk-purple)', stripe:'var(--tk-good)',
+      openai:'var(--tk-warn)', elevenlabs:'#d36bc0', firebase:'#ffa94d', manual:'var(--muted)'};
+    const srcColor = s => SRC_COLORS[s] || 'var(--muted)';
+    const thisMonth = (a.by_month||[]).length ? (a.by_month[a.by_month.length-1].amount_usd) : 0;
+    // collect all sources seen across projects for the per-project table columns
+    const allSources = (a.by_source||[]).map(s=>s.name);
+
+    const warningsHtml = (a.warnings||[]).length
+      ? `<div class="card" style="border-color:var(--tk-bad);background:rgba(255,80,80,.06)">
+          <h3 style="color:var(--tk-bad)">Mapping warnings</h3>
+          ${(a.warnings).map(w=>`<div class="sub" style="margin:4px 0">⚠ ${escapeHtml(w)}</div>`).join('')}</div>`
+      : '';
+
+    // per-project stacked bar (segments colored by source)
+    const maxProj = Math.max(1, ...(a.by_project||[]).map(p=>p.amount_usd));
+    const projBars = (a.by_project||[]).map(p => {
+      const segs = Object.entries(p.by_source||{}).sort((x,y)=>y[1]-x[1]).map(([src,v])=>
+        `<div title="${escapeHtml(src)}: ${tkfmt.usd2(v)}" style="height:100%;width:${v/maxProj*100}%;background:${srcColor(src)}"></div>`).join('');
+      return `<div class="bar-row"><div class="bar-label" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</div>
+        <div class="bar-track" style="display:flex;overflow:hidden">${segs}</div>
+        <div class="bar-value">${tkfmt.usd2(p.amount_usd)}</div></div>`;
+    }).join('') || '<div class="empty">No data</div>';
+
+    const legend = allSources.map(s=>`<span style="margin-right:14px;font-size:12px">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${srcColor(s)};vertical-align:middle"></span>
+      <span style="vertical-align:middle"> ${escapeHtml(s)}</span></span>`).join('');
+
+    // per-project table with a column per source
+    const projTable = `<table><thead><tr><th>Project</th><th class="num">Total</th>
+      ${allSources.map(s=>`<th class="num">${escapeHtml(s)}</th>`).join('')}<th class="num">Records</th></tr></thead><tbody>
+      ${(a.by_project||[]).map(p=>`<tr>
+        <td>${escapeHtml(p.name)}${p.name==='unmapped'?' <span class="tag" style="color:var(--tk-bad)">unmapped</span>':''}</td>
+        <td class="num">${tkfmt.usd2(p.amount_usd)}</td>
+        ${allSources.map(s=>`<td class="num">${p.by_source && p.by_source[s]!=null?tkfmt.usd2(p.by_source[s]):'—'}</td>`).join('')}
+        <td class="num">${p.records}</td></tr>`).join('') || `<tr><td colspan="${allSources.length+3}" class="empty">No data</td></tr>`}
+      </tbody></table>`;
+
+    const unmapped = (a.by_project||[]).find(p=>p.name==='unmapped');
+    const unmappedCallout = (t.unmapped_usd > 0 && unmapped)
+      ? `<div class="card" style="border-color:var(--tk-warn);background:rgba(255,196,76,.07)">
+          <h3 style="color:var(--tk-warn)">Unmapped spend — ${tkfmt.usd2(t.unmapped_usd)}</h3>
+          <div class="sub">This spend isn't attributed to a project. Add these native ids to
+            <span class="mono">config/cost-sources.yaml</span> to attribute it:</div>
+          <div style="margin-top:8px">${(unmapped.native_ids||[]).map(n=>`<span class="tag mono">${escapeHtml(n)}</span>`).join(' ') || '<span class="sub">(no native ids)</span>'}</div>
+        </div>`
+      : '';
+
+    const serviceTable = `<table><thead><tr><th>Service</th><th>Source</th><th class="num">$</th></tr></thead><tbody>
+      ${(a.by_service||[]).slice(0,15).map(s=>`<tr><td>${escapeHtml(s.name)}</td>
+        <td><span class="tag">${escapeHtml(s.source)}</span></td>
+        <td class="num">${tkfmt.usd2(s.amount_usd)}</td></tr>`).join('') || '<tr><td colspan=3 class="empty">No data</td></tr>'}
+      </tbody></table>`;
+
+    return `<div class="tk">
+      <h1>Cost — all sources</h1>
+      <div class="sub">Actual external money spent per project — Google Cloud/Firebase + third-party APIs (Stripe, etc.).
+        Claude usage lives on <b>Token usage</b> (<b>API-equivalent</b> cost, a subscription-value
+        estimate, not money out — your Max plan means $0 real spend there).</div>
+      ${warningsHtml}
+      <div class="kpis">
+        <div class="kpi cost"><div class="v big">${tkfmt.usd2(t.amount_usd)}</div><div class="l">Total cost</div></div>
+        <div class="kpi"><div class="v">${(a.by_source||[]).length}</div><div class="l">Sources</div></div>
+        <div class="kpi"><div class="v" style="color:${t.unmapped_usd>0?'var(--tk-bad)':'var(--tk-good)'}">${tkfmt.usd2(t.unmapped_usd)}</div><div class="l">Unmapped</div></div>
+        <div class="kpi"><div class="v">${tkfmt.usd2(thisMonth)}</div><div class="l">This month</div></div>
+      </div>
+      ${unmappedCallout}
+      <div class="card"><h3>Per-project total cost</h3>
+        <div class="sub" style="margin-bottom:8px">${legend}</div>
+        <div>${projBars}</div>
+        <div style="margin-top:14px">${projTable}</div></div>
+      <div class="grid2">
+        <div class="card"><h3>By source</h3><div style="margin-top:10px">
+          ${tkBars(a.by_source||[], s=>s.amount_usd, s=>s.name, 'var(--tk-accent)', s=>tkfmt.usd2(s.amount_usd))}</div></div>
+        <div class="card"><h3>Top services</h3><div style="margin-top:10px">${serviceTable}</div></div>
+      </div>
+      <div class="card"><h3>Monthly trend</h3><div style="margin-top:10px">
+        ${tkBars(a.by_month||[], m=>m.amount_usd, m=>m.month, 'var(--tk-good)', m=>tkfmt.usd2(m.amount_usd))}</div></div>
+    </div>`;
+  },
+
+  async seo() {
+    const a = await get('/api/seo');
+    const sum = a.summary || {};
+    const sites = a.sites || [];
+    const sevColor = s => s==='critical'||s==='major' ? 'var(--red)' : s==='minor' ? 'var(--yellow)' : 'var(--muted)';
+    const issueRow = i => `<div class="ev"><span class="tag" style="color:${sevColor(i.severity)}">${escapeHtml(i.severity||'?')}/${escapeHtml(i.area||'?')}</span>
+      <span>${escapeHtml(i.detail||'')}</span></div>`;
+    const win = w => (w && w.current && w.current.length) ? `${w.current[0]} → ${w.current[w.current.length-1]}` : '';
+    const cards = sites.map(s => `
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3>${escapeHtml(s.label)}</h3>
+          <span class="sub">${escapeHtml(s.date||'')}${win(s.window)?' · '+escapeHtml(win(s.window)):''}</span>
+        </div>
+        <div style="margin-top:6px">
+          <h4 style="margin:8px 0 4px;color:${s.actionable.length?'var(--red)':'var(--green)'}">Actionable (escalate to dev) — ${s.actionable.length}</h4>
+          <div class="feed">${s.actionable.map(issueRow).join('') || '<div class="empty">None this week.</div>'}</div>
+          <h4 style="margin:12px 0 4px">Watch — ${s.watch.length}</h4>
+          <div class="feed">${s.watch.map(issueRow).join('') || '<div class="empty">None.</div>'}</div>
+          ${s.digest ? `<details style="margin-top:12px"><summary class="sub" style="cursor:pointer">Full digest</summary>
+            <pre class="out" style="margin-top:8px">${escapeHtml(s.digest)}</pre></details>` : ''}
+        </div>
+      </div>`).join('') || '<div class="card"><div class="empty">No SEO reviews found. They appear after the weekly run (Mon 09:00 PT).</div></div>';
+    return `<h1>SEO</h1>
+      <div class="sub">Latest weekly SEO digest per site — from each repo's <span class="mono">docs/seo/reviews/</span>.
+        Actionable issues escalate to dev; watch items are informational.</div>
+      <div class="kpis">
+        <div class="kpi"><div class="v">${sum.sites||0}</div><div class="l">Sites</div></div>
+        <div class="kpi"><div class="v" style="color:${(sum.actionable||0)>0?'var(--red)':'var(--green)'}">${sum.actionable||0}</div><div class="l">Actionable</div></div>
+        <div class="kpi"><div class="v" style="color:var(--yellow)">${sum.watch||0}</div><div class="l">Watch</div></div>
+        <div class="kpi"><div class="v">${sum.latest_date||'—'}</div><div class="l">Latest run</div></div>
+      </div>
+      ${cards}`;
+  },
+
+  async insights() {
+    const a = await get('/api/insights');
+    const t = a.totals || {};
+    const fmt = n => (n||0).toLocaleString();
+    const barList = (rows, color, suffix='') => {
+      const max = Math.max(1, ...rows.map(r=>r.count));
+      return rows.map(r =>
+        `<div class="bar-row"><div class="bar-label" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${r.count/max*100}%;background:${color}"></div></div>
+          <div class="bar-value">${fmt(r.count)}${suffix}</div></div>`).join('') || '<div class="empty">No data</div>';
+    };
+    const outcomeColor = {fully_achieved:'var(--green)', mostly_achieved:'var(--accent)', partially_achieved:'var(--yellow)', failed:'var(--red)'};
+    const outcomeBars = (a.outcomes||[]).map(o => {
+      const max = Math.max(1, ...(a.outcomes||[]).map(x=>x.count));
+      return `<div class="bar-row"><div class="bar-label">${o.name.replace(/_/g,' ')}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${o.count/max*100}%;background:${outcomeColor[o.name]||'var(--muted)'}"></div></div>
+        <div class="bar-value">${o.count}</div></div>`;}).join('');
+    const projRows = (a.by_project||[]).map(p =>
+      `<tr><td>${escapeHtml(p.name)}</td><td>${p.sessions}</td>
+        <td>${p.success_pct!=null?`<span style="color:${p.success_pct>=80?'var(--green)':p.success_pct>=50?'var(--yellow)':'var(--red)'}">${p.success_pct}%</span>`:'—'}</td>
+        <td>${p.avg_duration}m</td><td>${p.tool_errors}</td><td>${p.commits}</td></tr>`).join('');
+    const frictionCards = (a.friction||[]).map(f =>
+      `<div class="ev"><span class="pill s-failed">${f.count}</span><span>${escapeHtml(f.name.replace(/_/g,' '))}</span></div>`).join('') || '<div class="empty">No friction recorded 🎉</div>';
+    const winCards = (a.wins||[]).map(w =>
+      `<div class="card" style="background:rgba(74,222,128,.06);border-color:rgba(74,222,128,.25)">
+        <div class="row" style="justify-content:space-between"><b>${escapeHtml(w.project)}</b><span class="mono" style="color:var(--muted)">${w.duration_minutes}min</span></div>
+        <div class="desc" style="margin-top:4px">${escapeHtml(w.summary||w.goal||'')}</div></div>`).join('') || '<div class="empty">No clean wins yet</div>';
+    const sinkCards = (a.time_sinks||[]).map(w =>
+      `<div class="card" style="background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.2)">
+        <div class="row" style="justify-content:space-between"><b>${escapeHtml(w.project)}</b><span>${pill(w.outcome||'')}</span></div>
+        <div class="desc" style="margin-top:4px">${escapeHtml(w.summary||w.goal||'')}</div></div>`).join('') || '<div class="empty">None</div>';
+    return `<h1>Session insights</h1>
+      <div class="sub">From <span class="mono">~/.claude/usage-data/</span> — quality, not cost.
+        Was the time worth it, and where does it go wrong?</div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" style="color:var(--green)">${t.success_rate_pct ?? '—'}%</div><div class="l">Success rate</div></div>
+        <div class="kpi"><div class="v">${fmt(t.sessions)}</div><div class="l">Sessions</div></div>
+        <div class="kpi"><div class="v">${fmt(t.scored_sessions)}</div><div class="l">Scored</div></div>
+        <div class="kpi"><div class="v" style="color:var(--yellow)">${fmt(t.total_friction)}</div><div class="l">Friction events</div></div>
+        <div class="kpi"><div class="v" style="color:var(--red)">${fmt(t.total_tool_errors)}</div><div class="l">Tool errors</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Outcomes</h3><div style="margin-top:10px">${outcomeBars}</div></div>
+        <div class="card"><h3>Where things go wrong</h3><div class="feed" style="margin-top:6px">${frictionCards}</div></div>
+      </div>
+      <div class="card"><h3>Per-project quality</h3>
+        <table><thead><tr><th>Project</th><th>Sessions</th><th>Success</th><th>Avg dur</th><th>Tool errs</th><th>Commits</th></tr></thead><tbody>${projRows}</tbody></table></div>
+      <div class="grid2">
+        <div class="card"><h3>What you wanted</h3><div style="margin-top:10px">${barList(a.goal_categories||[],'var(--accent)')}</div></div>
+        <div class="card"><h3>Top tools</h3><div style="margin-top:10px">${barList(a.top_tools||[],'var(--purple)')}</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><h3>Helpfulness</h3><div style="margin-top:10px">${barList(a.helpfulness||[],'var(--green)')}</div></div>
+        <div class="card"><h3>Tool errors</h3><div style="margin-top:10px">${barList(a.tool_errors||[],'var(--red)')}</div></div>
+      </div>
+      <h3 style="margin:18px 0 8px">✅ Clean wins <span style="color:var(--muted);font-weight:400">— achieved, fast</span></h3>
+      ${winCards}
+      <h3 style="margin:18px 0 8px">⏳ Time sinks <span style="color:var(--muted);font-weight:400">— longest, not fully achieved</span></h3>
+      ${sinkCards}`;
+  },
+
+  async pipelines() {
+    const data = await get('/api/pipelines');
+    const s = data.summary || {};
+    const byProject = s.by_project || {};
+    const jobs = (data.jobs || []).slice().sort((a, b) =>
+      (a.project || '').localeCompare(b.project || '') || (a.name || '').localeCompare(b.name || ''));
+    const statusPill = j => {
+      const map = {ok: 'done', error: 'failed', none: 'queued'};
+      const cls = map[j.last_run_status] || 'queued';
+      return `<span class="pill s-${cls}">${escapeHtml(j.last_run_status)}</span>`;
+    };
+    const fmtTs = t => t ? escapeHtml(t.replace('T', ' ').replace('+00:00', 'Z')) : '—';
+    const rows = jobs.map(j => {
+      const sched = j.schedule
+        ? `<span class="mono">${escapeHtml(j.schedule)}</span>${j.tz ? `<div style="color:var(--muted);font-size:11px">${escapeHtml(j.tz)}</div>` : ''}`
+        : '—';
+      const errCell = j.last_error
+        ? `<span style="color:var(--red)">${escapeHtml(j.last_error)}</span>${j.consecutive_errors > 1 ? ` <span class="pill s-failed" style="font-size:10px">×${j.consecutive_errors}</span>` : ''}`
+        : '—';
+      const name = `${escapeHtml(j.name)}${j.enabled ? '' : ' <span class="pill s-queued" style="font-size:10px">disabled</span>'}`;
+      return `<tr>
+        <td>${name}<div class="desc" style="margin-top:2px">${escapeHtml(j.description || '')}</div></td>
+        <td>${escapeHtml(j.project || '')}</td>
+        <td>${sched}</td>
+        <td>${statusPill(j)}</td>
+        <td class="mono" style="white-space:nowrap">${fmtTs(j.last_run_at)}</td>
+        <td class="mono" style="white-space:nowrap">${fmtTs(j.next_run_at)}</td>
+        <td>${errCell}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty">No cron jobs found. Expected $AGENTOS_CRON_DIR/jobs.json</td></tr>';
+    const projTags = Object.entries(byProject).sort((a, b) => b[1] - a[1])
+      .map(([p, n]) => `<span class="tag">${escapeHtml(p)} ${n}</span>`).join(' ');
+    return `<h1>Pipelines</h1>
+      <div class="sub">Scheduled jobs across all projects AgentOS manages, from
+        <span class="mono">$AGENTOS_CRON_DIR</span> — read-only, local files only.
+        Did each job run, what's its last status, what failed?</div>
+      <div class="kpis">
+        <div class="kpi"><div class="v">${s.total || 0}</div><div class="l">Total jobs</div></div>
+        <div class="kpi"><div class="v">${Object.keys(byProject).length}</div><div class="l">Projects</div></div>
+        <div class="kpi"><div class="v" style="color:var(--red)">${s.erroring || 0}</div><div class="l">Erroring</div></div>
+        <div class="kpi"><div class="v" style="color:var(--green)">${s.enabled || 0}</div><div class="l">Enabled</div></div>
+      </div>
+      <div style="margin:-12px 0 18px">${projTags}</div>
+      <div class="card">
+        <table><thead><tr>
+          <th>Job</th><th>Project</th><th>Schedule</th><th>Status</th><th>Last run</th><th>Next run</th><th>Error</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+      </div>`;
+  },
+
+  async feed() {
+    return `<h1>Live event feed <span class="dot"></span></h1>
+      <div class="sub">Real-time stream of run events via Server-Sent Events.</div>
+      <div class="card"><div class="feed" id="livefeed">${renderFeed()}</div></div>`;
+  },
+
+  async projects() {
+    const [projects, stats] = await Promise.all([get('/api/projects'), get('/api/work-stats')]);
+    const per = stats.per_project || {};
+    const cards = projects.length ? `<div class="grid2">${projects.map(p => `
+        <div class="card" onclick="render('projectDetail','${p.id}')">
+          <div class="row" style="justify-content:space-between">
+            <h3>${escapeHtml(p.name)}</h3>${pill(p.status)}
+          </div>
+          <div class="desc">${escapeHtml(p.description||'')}</div>
+          <div style="margin-top:8px">
+            ${p.slug?`<span class="tag">${escapeHtml(p.slug)}</span>`:''}
+            ${p.repo_path?`<span class="tag mono">${escapeHtml(p.repo_path)}</span>`:''}
+            <span class="tag">${per[p.id]||0} tasks</span>
+          </div>
+        </div>`).join('')}</div>`
+      : '<div class="empty">No projects yet. Create one below.</div>';
+    return `<h1>Projects</h1><div class="sub">The Work layer — repos and their sprints/tasks.</div>
+      ${cards}
+      <div class="card" style="margin-top:18px">
+        <h3>+ New project</h3>
+        <label>Name *</label><input id="p_name" placeholder="Mission Control">
+        <label>Slug</label><input id="p_slug" placeholder="mission-control">
+        <label>Repo path</label><input id="p_repo" placeholder="~/code/mission-control">
+        <label>Description</label><textarea id="p_desc" rows="2"></textarea>
+        <div class="row" style="margin-top:14px"><button onclick="createProject()">Create ▸</button></div>
+        <div id="p_result"></div>
+      </div>`;
+  },
+
+  async projectDetail(id) {
+    const p = await get('/api/projects/' + id);
+    if (p.error) return `<span class="back" onclick="render('projects')">← Projects</span><div class="empty">Not found.</div>`;
+    const counts = p.task_counts || {};
+    const countTags = Object.entries(counts).map(([s,n]) => `${pill(s)} <span style="color:var(--muted)">${n}</span>`).join(' &nbsp; ') || '<span class="sub">No tasks yet.</span>';
+    const sprints = (p.sprints||[]).length ? `<table><thead><tr><th>Name</th><th>Status</th><th>Goal</th><th></th></tr></thead><tbody>
+      ${p.sprints.map(s=>`<tr><td>${escapeHtml(s.name)}</td><td>${pill(s.status)}</td><td>${escapeHtml(s.goal||'')}</td>
+        <td><button class="ghost" onclick='event.stopPropagation(); runSprint("${s.id}")'>▸ Run Sprint</button></td></tr>`).join('')}</tbody></table>`
+      : '<div class="empty">No sprints.</div>';
+    return `<span class="back" onclick="render('projects')">← Projects</span>
+      <h1>${escapeHtml(p.name)} ${pill(p.status)}</h1>
+      <div class="sub">${escapeHtml(p.description||'')} ${p.repo_path?`· <span class="mono">${escapeHtml(p.repo_path)}</span>`:''}</div>
+      <div class="card"><h3>Tasks (${p.task_total||0})</h3><div style="margin-top:6px">${countTags}</div>
+        <div class="row" style="margin-top:12px"><button onclick="render('tasks','${p.id}')">View tasks ▸</button></div></div>
+      <div class="card"><h3>Sprints</h3>${sprints}<div id="sprintResult"></div></div>`;
+  },
+
+  async inbox() {
+    const items = await get('/api/inbox');
+    if (!items.length) return `<h1>Inbox</h1><div class="sub">Questions from agents that need your answer.</div>
+      <div class="card"><div class="empty">Inbox empty — no agents are waiting on you. 🎉</div></div>`;
+    return `<h1>Inbox <span class="pill s-blocked">${items.length}</span></h1>
+      <div class="sub">Agents paused on these. Answering re-readies the task for the next sprint pass.</div>
+      ${items.map(i => `<div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div><span class="tag">${i.kind}</span> <b>${i.from_agent||'agent'}</b></div>
+          <span class="mono" style="color:var(--muted)">${shortId(i.task_id||'')}</span>
+        </div>
+        <div style="margin:8px 0 10px">${escapeHtml(i.prompt)}</div>
+        ${(i.options||[]).length ? `<div style="margin-bottom:8px">${i.options.map(o=>
+          `<button class="ghost" style="margin-right:6px" onclick='answerInbox("${i.id}", ${JSON.stringify(o).replace(/'/g,"&#39;")})'>${escapeHtml(o)}</button>`).join('')}</div>` : ''}
+        <div class="row"><input id="ans_${i.id}" placeholder="Type your answer…">
+          <button onclick='answerInboxField("${i.id}")'>Answer</button></div>
+      </div>`).join('')}`;
+  },
+
+  async tasks(projectId) {
+    const [projects, allTasks] = await Promise.all([
+      get('/api/projects'),
+      get('/api/tasks' + (projectId ? '?project_id=' + projectId : '')),
+    ]);
+    workProjects = projects;
+    const projOpts = projects.map(p => `<option value="${p.id}" ${p.id===projectId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+    return `<h1>Tasks</h1><div class="sub">Units of work. Click a task for detail and linked runs.</div>
+      <div class="card">
+        <div class="row" style="gap:14px">
+          <div style="flex:1"><label>Filter by project</label>
+            <select id="t_filter" onchange="render('tasks', this.value||undefined)">
+              <option value="">All projects</option>${projOpts}
+            </select></div>
+        </div>
+      </div>
+      <div class="card">${tasksTable(allTasks)}</div>
+      <div class="card" style="margin-top:18px">
+        <h3>+ New task</h3>
+        <label>Project *</label><select id="t_proj">${projOpts || '<option value="">— create a project first —</option>'}</select>
+        <label>Title *</label><input id="t_title" placeholder="Wire up the auth flow">
+        <label>Description</label><textarea id="t_desc" rows="2"></textarea>
+        <div class="row" style="gap:14px">
+          <div style="flex:1"><label>Assignee</label><input id="t_assignee" placeholder="developer / human"></div>
+          <div style="flex:1"><label>Priority</label><select id="t_prio"><option>medium</option><option>high</option><option>low</option></select></div>
+        </div>
+        <div class="row" style="margin-top:14px"><button onclick="createTask()">Create ▸</button></div>
+        <div id="t_result"></div>
+      </div>`;
+  },
+
+  async board(projectId) {
+    const [projects, tasks] = await Promise.all([
+      get('/api/projects'),
+      get('/api/tasks' + (projectId ? '?project_id=' + projectId : '')),
+    ]);
+    const COLS = ['backlog','ready','in_progress','blocked','review','done','cancelled'];
+    const cols = COLS.slice();
+    const byStatus = {};
+    cols.forEach(c => byStatus[c] = []);
+    (tasks||[]).forEach(t => {
+      const s = t.status || 'backlog';
+      if (!byStatus[s]) { byStatus[s] = []; cols.push(s); } // tolerate unknown statuses
+      byStatus[s].push(t);
+    });
+    const projOpts = projects.map(p => `<option value="${p.id}" ${p.id===projectId?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
+    const projArg = projectId ? `'${projectId}'` : 'undefined';
+    const columns = cols.map(col => {
+      const items = byStatus[col] || [];
+      const cards = items.map(t => `
+        <div class="bcard" draggable="true" ondragstart="boardDragStart(event,'${t.id}')" ondragend="boardDragEnd(event)" onclick="render('taskDetail','${t.id}')">
+          <div class="t">${escapeHtml(t.title)}</div>
+          <div class="m"><span class="prio-${t.priority}">${escapeHtml(t.priority||'—')}</span><span>${escapeHtml(t.assignee||'—')}</span></div>
+        </div>`).join('') || '<div class="bcard-empty">—</div>';
+      return `<div class="bcol">
+        <div class="bcol-head">${col.replace(/_/g,' ')} <span class="c">${items.length}</span></div>
+        <div class="bcol-body" data-status="${col}" ondragover="boardDragOver(event)" ondragleave="boardDragLeave(event)" ondrop="boardDrop(event,'${col}',${projArg})">${cards}</div>
+      </div>`;
+    }).join('');
+    return `<h1>Board</h1>
+      <div class="sub">Kanban over your tasks — drag a card between columns to change its status, click to open.</div>
+      <div class="card">
+        <div class="row" style="gap:14px"><div style="flex:1"><label>Filter by project</label>
+          <select onchange="render('board', this.value||undefined)">
+            <option value="">All projects</option>${projOpts}
+          </select></div>
+        </div>
+      </div>
+      ${(tasks||[]).length ? `<div class="board">${columns}</div>` : '<div class="card"><div class="empty">No tasks yet. Create tasks under Tasks or Projects.</div></div>'}`;
+  },
+
+  async taskDetail(id) {
+    const t = await get('/api/tasks/' + id);
+    if (t.error) return `<span class="back" onclick="render('tasks')">← Tasks</span><div class="empty">Not found.</div>`;
+    const deps = (t.depends_on||[]).map(d=>`<span class="tag mono">${shortId(d)}</span>`).join(' ') || '<span class="sub">none</span>';
+    const run = t.last_run;
+    const runBlock = run
+      ? `<div class="card"><h3>Linked run</h3><div class="row" style="gap:8px"><span class="mono" style="cursor:pointer;color:var(--accent)" onclick="render('runDetail','${run.id}')">${shortId(run.id)}</span> ${pill(run.status)} <span class="sub">${run.agent||run.workflow_name||''}</span></div></div>`
+      : '';
+    const statusBtns = ['backlog','ready','in_progress','blocked','review','done','cancelled']
+      .map(s=>`<button class="ghost" onclick="setTaskStatus('${t.id}','${s}')" ${s===t.status?'disabled':''}>${s}</button>`).join(' ');
+    return `<span class="back" onclick="render('tasks')">← Tasks</span>
+      <h1>${escapeHtml(t.title)} ${pill(t.status)}</h1>
+      <div class="sub mono">${t.id}</div>
+      <div class="card"><div class="row" style="gap:24px;flex-wrap:wrap">
+        <div><div class="l" style="color:var(--muted);font-size:11px">ASSIGNEE</div>${escapeHtml(t.assignee||'—')}</div>
+        <div><div class="l" style="color:var(--muted);font-size:11px">PRIORITY</div><span class="prio-${t.priority}">${t.priority}</span></div>
+        <div><div class="l" style="color:var(--muted);font-size:11px">CREATED BY</div>${escapeHtml(t.created_by||'—')}</div>
+        <div><div class="l" style="color:var(--muted);font-size:11px">DEPENDS ON</div>${deps}</div>
+      </div></div>
+      ${t.description?`<div class="card"><h3>Description</h3><pre class="out">${escapeHtml(t.description)}</pre></div>`:''}
+      ${t.acceptance_criteria?`<div class="card"><h3>Acceptance criteria</h3><pre class="out">${escapeHtml(t.acceptance_criteria)}</pre></div>`:''}
+      ${runBlock}
+      <div class="card"><h3>Set status</h3><div class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px">${statusBtns}</div></div>`;
+  },
+};
+
+function runsTable(runs) {
+  if (!runs.length) return '<div class="empty">No runs yet. Dispatch an agent or run a workflow.</div>';
+  return `<table><thead><tr><th>ID</th><th>Agent / Workflow</th><th>Status</th><th>Model</th><th>$</th><th>Started</th></tr></thead><tbody>
+    ${runs.map(r => `<tr onclick="render('runDetail','${r.id}')">
+      <td class="mono">${shortId(r.id)}</td>
+      <td>${r.agent || r.workflow_name || '—'}</td>
+      <td>${pill(r.status)}</td>
+      <td>${(r.model||'—').replace('claude-','')}</td>
+      <td>${r.cost_usd>0?'$'+r.cost_usd.toFixed(4):'<span class="billed-sub">sub</span>'}</td>
+      <td class="mono">${(r.started_at||'').slice(5,19).replace('T',' ')}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+let workProjects = [];
+
+function tasksTable(tasks) {
+  if (!tasks.length) return '<div class="empty">No tasks. Create one below.</div>';
+  return `<table><thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Assignee</th><th>Priority</th></tr></thead><tbody>
+    ${tasks.map(t => `<tr onclick="render('taskDetail','${t.id}')">
+      <td class="mono">${shortId(t.id)}</td>
+      <td>${escapeHtml(t.title)}</td>
+      <td>${pill(t.status)}</td>
+      <td>${escapeHtml(t.assignee||'—')}</td>
+      <td><span class="prio-${t.priority}">${t.priority}</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+window.createProject = async function() {
+  const name = $('#p_name').value.trim();
+  if (!name) { $('#p_result').innerHTML = '<div class="sub" style="color:var(--red);margin-top:8px">Name is required.</div>'; return; }
+  const res = await post('/api/projects', {
+    name, slug: $('#p_slug').value.trim(),
+    repo_path: $('#p_repo').value.trim() || null,
+    description: $('#p_desc').value.trim() || null,
+  });
+  if (res.error) $('#p_result').innerHTML = `<div class="sub" style="color:var(--red);margin-top:8px">${escapeHtml(res.error)}</div>`;
+  else render('projects');
+};
+
+window.createTask = async function() {
+  const project_id = $('#t_proj').value;
+  const title = $('#t_title').value.trim();
+  if (!project_id || !title) { $('#t_result').innerHTML = '<div class="sub" style="color:var(--red);margin-top:8px">Project and title are required.</div>'; return; }
+  const res = await post('/api/tasks', {
+    project_id, title,
+    description: $('#t_desc').value.trim() || null,
+    assignee: $('#t_assignee').value.trim() || null,
+    priority: $('#t_prio').value,
+  });
+  if (res.error) $('#t_result').innerHTML = `<div class="sub" style="color:var(--red);margin-top:8px">${escapeHtml(res.error)}</div>`;
+  else render('tasks', project_id);
+};
+
+window.setTaskStatus = async function(id, status) {
+  await post('/api/tasks/' + id + '/status', {status});
+  render('taskDetail', id);
+};
+
+// ---------- Kanban board drag & drop ----------
+let boardDragId = null;
+window.boardDragStart = function(e, id) {
+  boardDragId = id;
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+};
+window.boardDragEnd = function(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.bcol-body.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+  boardDragId = null;
+};
+window.boardDragOver = function(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drop-hover');
+};
+window.boardDragLeave = function(e) {
+  e.currentTarget.classList.remove('drop-hover');
+};
+window.boardDrop = async function(e, status, projectId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-hover');
+  const id = (e.dataTransfer && e.dataTransfer.getData('text/plain')) || boardDragId;
+  boardDragId = null;
+  if (!id) return;
+  await post('/api/tasks/' + id + '/status', {status});
+  render('board', projectId || undefined);
+};
+
+function renderFeed() {
+  if (!liveEvents.length) return '<div class="empty">Waiting for events… run a workflow to see live updates.</div>';
+  return liveEvents.slice(-50).reverse().map(e =>
+    `<div class="ev"><span class="t">${fmtTime(e.ts)}</span><span><b>${e.type}</b> <span class="mono" style="color:var(--muted)">${shortId(e.run_id)}</span> ${escapeHtml(JSON.stringify(safeParse(e.payload)))}</span></div>`).join('');
+}
+
+window.openRun = function(wf) {
+  const inputs = Object.entries(wf.inputs||{});
+  const fields = inputs.length ? inputs.map(([k,spec]) =>
+    `<label>${k}${spec.required?' *':''}</label><input id="in_${k}" placeholder="${(spec.description||'')}">`).join('')
+    : '<div class="sub">No inputs required.</div>';
+  $('#runpanel').innerHTML = `<div class="card">
+    <h3>Run: ${wf.name}</h3>${fields}
+    <div class="row" style="margin-top:14px">
+      <button onclick='doRun("${wf.name}", ${JSON.stringify(inputs.map(i=>i[0]))})'>Dispatch ▸</button>
+      <button class="ghost" onclick='$("#runpanel").innerHTML=""'>Cancel</button>
+    </div>
+    <div id="runresult"></div></div>`;
+  $('#runpanel').scrollIntoView({behavior:'smooth'});
+};
+
+window.doRun = async function(name, keys) {
+  const inputs = {};
+  keys.forEach(k => { const el = $('#in_'+k); if (el) inputs[k] = el.value; });
+  $('#runresult').innerHTML = '<div class="sub" style="margin-top:12px"><span class="dot"></span>Running…</div>';
+  const res = await post('/api/run-workflow', {name, inputs});
+  if (res.ok) {
+    $('#runresult').innerHTML = `<div style="margin-top:12px"><span class="pill s-done">done</span>
+      <pre class="out" style="margin-top:8px">${escapeHtml(res.final_output||'')}</pre></div>`;
+  } else {
+    $('#runresult').innerHTML = `<div style="margin-top:12px"><span class="pill s-failed">failed</span>
+      <pre class="out" style="margin-top:8px;color:var(--red)">${escapeHtml(res.error||'')}</pre></div>`;
+  }
+};
+
+function safeParse(s){ try { return JSON.parse(s||'{}'); } catch { return {}; } }
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function mdLite(md){
+  function inline(s){ return escapeHtml(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code class="mono">$1</code>').replace(/_(.+?)_/g,'<i>$1</i>'); }
+  const out=[]; let inList=false;
+  const closeList=()=>{ if(inList){out.push('</ul>');inList=false;} };
+  for(const raw of String(md).split('\n')){
+    const l=raw.replace(/\r$/,''); let m;
+    if(/^---+\s*$/.test(l)){ closeList(); out.push('<hr style="border-color:var(--border);margin:12px 0">'); }
+    else if((m=l.match(/^(#{1,4})\s+(.*)/))){ closeList(); const lvl=Math.min(m[1].length+1,4); out.push(`<h${lvl} style="margin:14px 0 6px">${inline(m[2])}</h${lvl}>`); }
+    else if((m=l.match(/^\s*-\s+(.*)/))){ if(!inList){out.push('<ul style="margin:4px 0 8px 18px">');inList=true;} out.push(`<li style="margin:2px 0">${inline(m[1])}</li>`); }
+    else if(l.trim()===''){ closeList(); }
+    else { closeList(); out.push(`<p style="margin:6px 0">${inline(l)}</p>`); }
+  }
+  closeList();
+  return out.join('');
+}
+
+// ---------- Token usage sub-tabs (Nate Herk style) ----------
+let tokenTab = localStorage.getItem('tk.tab') || 'overview';
+let tokenData = null;
+let tkPlan = localStorage.getItem('tk.plan') || 'api';
+const tkfmt = {
+  int: n => (n||0).toLocaleString(),
+  compact: n => new Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(n||0),
+  usd: n => n==null?'—':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}),
+  usd2: n => n==null?'—':'$'+Number(n).toFixed(2),
+};
+function mClass(m){ const s=(m||'').toLowerCase(); return s.includes('opus')?'opus':s.includes('sonnet')?'sonnet':s.includes('haiku')?'haiku':''; }
+function mShort(m){ return (m||'').replace('claude-',''); }
+
+window.tkShow = function(tab){
+  tokenTab = tab; localStorage.setItem('tk.tab', tab);
+  document.querySelectorAll('.tk .subtabs a').forEach(a=>a.classList.toggle('active', a.dataset.tk===tab));
+  const body = document.querySelector('#tkbody');
+  if (body) body.innerHTML = tkRender(tokenData, tab);
+};
+
+function tkBars(rows, valFn, labelFn, color, fmtVal){
+  const max = Math.max(1, ...rows.map(valFn));
+  return rows.map(r =>
+    `<div class="bar-row"><div class="bar-label" title="${escapeHtml(labelFn(r))}">${escapeHtml(labelFn(r))}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${valFn(r)/max*100}%;background:${color}"></div></div>
+      <div class="bar-value">${fmtVal(r)}</div></div>`).join('') || '<div class="empty">No data</div>';
+}
+
+function tkRender(a, tab){
+  if (!a) return '<div class="empty">Loading…</div>';
+  const t = a.totals || {};
+  if (tab === 'overview'){
+    return `<div class="kpis">
+        <div class="kpi cost"><div class="v big">${tkfmt.usd(t.cost_usd)}</div><div class="l">API-equiv cost</div></div>
+        <div class="kpi"><div class="v">${tkfmt.compact(t.total_tokens)}</div><div class="l">Total tokens</div></div>
+        <div class="kpi"><div class="v" style="color:var(--tk-good)">${t.cache_hit_pct||0}%</div><div class="l">Cache hit</div></div>
+        <div class="kpi"><div class="v">${tkfmt.int(t.sessions)}</div><div class="l">Sessions</div></div>
+        <div class="kpi"><div class="v">${tkfmt.int(t.turns)}</div><div class="l">Turns</div></div>
+      </div>
+      <div class="card"><h3>Daily API-equivalent cost</h3><div style="margin-top:10px">
+        ${tkBars(a.by_day||[], d=>d.cost_usd, d=>d.day.slice(5), 'var(--tk-accent)', d=>tkfmt.usd(d.cost_usd))}</div></div>
+      <div class="grid2">
+        <div class="card"><h3>By project</h3><div style="margin-top:10px">
+          ${tkBars(a.by_project||[], p=>p.cost_usd, p=>p.name, 'var(--tk-good)', p=>tkfmt.usd(p.cost_usd))}</div></div>
+        <div class="card"><h3>Top tools by call count</h3><div style="margin-top:10px">
+          ${tkBars(a.top_tools||[], x=>x.calls, x=>x.name, 'var(--tk-purple)', x=>tkfmt.int(x.calls))}</div></div>
+      </div>
+      <div class="card"><h3>Token share by model</h3>
+        <table><thead><tr><th>Model</th><th class="num">Input</th><th class="num">Output</th><th class="num">Cache read</th><th class="num">API-equiv $</th></tr></thead><tbody>
+        ${(a.by_model||[]).map(m=>`<tr><td><span class="mtag ${mClass(m.name)}">${mShort(m.name)}</span></td>
+          <td class="num">${tkfmt.compact(m.input)}</td><td class="num">${tkfmt.compact(m.output)}</td>
+          <td class="num">${tkfmt.compact(m.cache_read)}</td><td class="num">${tkfmt.usd2(m.cost_usd)}</td></tr>`).join('')}
+        </tbody></table></div>
+      <div class="card"><h3>Recent sessions</h3>
+        <table><thead><tr><th>Session</th><th>Project</th><th class="num">Tokens</th><th class="num">$</th><th>Date</th></tr></thead><tbody>
+        ${(a.recent_sessions||[]).map(s=>`<tr><td class="mono">${shortId(s.session_id)}</td><td>${escapeHtml(s.project)}</td>
+          <td class="num">${tkfmt.compact(s.tokens)}</td><td class="num">${tkfmt.usd2(s.cost_usd)}</td>
+          <td class="mono">${(s.last_ts||'').slice(0,10)}</td></tr>`).join('')}
+        </tbody></table></div>`;
+  }
+  if (tab === 'prompts'){
+    return `<div class="card"><h3>Most expensive turns</h3>
+      <div class="sub">Ranked by total tokens (input + output + cache). Where the heavy moments are.</div>
+      <table><thead><tr><th class="num">Tokens</th><th class="num">$</th><th>Model</th><th>Project</th><th>Tools</th><th>When</th></tr></thead><tbody>
+      ${(a.expensive_prompts||[]).map(p=>`<tr>
+        <td class="num">${tkfmt.compact(p.tokens)}</td><td class="num">${tkfmt.usd2(p.cost_usd)}</td>
+        <td><span class="mtag ${mClass(p.model)}">${mShort(p.model)}</span></td>
+        <td>${escapeHtml(p.project)}</td>
+        <td>${(p.tools||[]).map(x=>`<span class="tag">${escapeHtml(x)}</span>`).join('')||'—'}</td>
+        <td class="mono">${(p.ts||'').slice(0,16).replace('T',' ')}</td></tr>`).join('') || '<tr><td colspan=6 class="empty">No data</td></tr>'}
+      </tbody></table></div>`;
+  }
+  if (tab === 'projects'){
+    return `<div class="card"><h3>Per-project token usage</h3>
+      <table><thead><tr><th>Project</th><th class="num">Sessions</th><th class="num">Input</th><th class="num">Output</th><th class="num">Cache read</th><th class="num">API-equiv $</th></tr></thead><tbody>
+      ${(a.by_project||[]).map(p=>`<tr><td>${escapeHtml(p.name)}</td>
+        <td class="num">${p.sessions}</td><td class="num">${tkfmt.compact(p.input)}</td>
+        <td class="num">${tkfmt.compact(p.output)}</td><td class="num">${tkfmt.compact(p.cache_read)}</td>
+        <td class="num">${tkfmt.usd2(p.cost_usd)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  if (tab === 'tips'){
+    const sev = {high:'var(--tk-bad)', medium:'var(--tk-warn)', low:'var(--muted)'};
+    return `<div class="card"><h3>Tips — reduce token usage</h3><div class="feed" style="margin-top:8px">
+      ${(a.tips||[]).length ? (a.tips||[]).map(tip=>
+        `<div class="ev"><span class="pill" style="background:rgba(255,255,255,.06);color:${sev[tip.severity]||'var(--muted)'}">${tip.severity}</span>
+          <span>${escapeHtml(tip.message)}</span></div>`).join('')
+        : '<div class="empty">No tips — your token usage looks efficient. 🎉</div>'}
+      </div></div>`;
+  }
+  if (tab === 'settings'){
+    const plans = a.plans || {};
+    return `<div class="card"><h3>Plan</h3>
+      <div class="sub">How costs are framed. The raw number is always the pay-per-token API equivalent.</div>
+      <div style="margin-top:10px;max-width:360px">
+        <select id="tkplan" onchange="tkSetPlan(this.value)">
+          ${Object.entries(plans).map(([k,v])=>`<option value="${k}" ${k===tkPlan?'selected':''}>${escapeHtml(v.label)}${v.monthly?` — $${v.monthly}/mo`:''}</option>`).join('')}
+        </select>
+        <div id="tkplanNote" class="sub" style="margin-top:12px">${tkPlanNote(a, tkPlan)}</div>
+      </div></div>`;
+  }
+  return '';
+}
+
+function tkPlanNote(a, plan){
+  const t = a.totals || {}; const plans = a.plans || {};
+  const p = plans[plan]; if (!p) return '';
+  if (plan === 'api') return `On pay-per-token, these sessions would cost <b>${tkfmt.usd(t.cost_usd)}</b>.`;
+  const months = Math.max(1, (a.by_day||[]).length / 30);
+  const sub = Math.round(p.monthly * months);
+  const saved = Math.round((t.cost_usd||0) - sub);
+  return `On <b>${escapeHtml(p.label)}</b> (~$${p.monthly}/mo) you paid about <b>$${sub}</b> for this period — vs <b>${tkfmt.usd(t.cost_usd)}</b> on the API. ${saved>0?`That's ~<b style="color:var(--tk-good)">$${saved.toLocaleString()} saved</b>.`:''}`;
+}
+window.tkSetPlan = function(plan){
+  tkPlan = plan; localStorage.setItem('tk.plan', plan);
+  const note = document.querySelector('#tkplanNote');
+  if (note && tokenData) note.innerHTML = tkPlanNote(tokenData, plan);
+};
+
+// ---------- Router ----------
+async function render(view, arg) {
+  document.querySelectorAll('.nav a').forEach(a =>
+    a.classList.toggle('active', a.dataset.view === view));
+  const main = $('#main');
+  main.innerHTML = '<div class="sub">Loading…</div>';
+  try {
+    if (view === 'runDetail') main.innerHTML = await views.runDetail(arg);
+    else if (view === 'projectDetail') main.innerHTML = await views.projectDetail(arg);
+    else if (view === 'taskDetail') main.innerHTML = await views.taskDetail(arg);
+    else if (view === 'tasks') main.innerHTML = await views.tasks(arg);
+    else if (view === 'board') main.innerHTML = await views.board(arg);
+    else if (view === 'briefings') main.innerHTML = await views.briefings(arg);
+    else main.innerHTML = await views[view]();
+  } catch (e) {
+    main.innerHTML = `<div class="empty">Could not reach the API.<br><span class="mono">${escapeHtml(e.message)}</span><br><br>Start it with: <span class="mono">agentos serve</span></div>`;
+  }
+}
+window.render = render;
+
+// ---------- Phase 6: sprint run, inbox, kill switch ----------
+window.runSprint = async function(sprintId) {
+  const el = $('#sprintResult');
+  if (el) el.innerHTML = '<div class="sub" style="margin-top:12px"><span class="dot"></span>Running sprint…</div>';
+  const res = await post('/api/sprints/' + sprintId + '/run', {});
+  if (el) {
+    const rows = (res.processed||[]).map(o =>
+      `<div class="ev"><span>${pill(o.final_status)}</span> <span>${escapeHtml(o.title)} <span style="color:var(--muted)">(${o.agent||'—'})</span></span></div>`).join('');
+    el.innerHTML = `<div style="margin-top:12px"><div class="sub">Processed ${(res.processed||[]).length} · ${escapeHtml(res.stopped_reason||'')}</div><div class="feed">${rows||'<div class="empty">No ready tasks.</div>'}</div></div>`;
+  }
+  refreshInboxBadge();
+};
+
+window.answerInbox = async function(itemId, answer) {
+  await post('/api/inbox/' + itemId + '/answer', {answer});
+  render('inbox'); refreshInboxBadge();
+};
+window.answerInboxField = async function(itemId) {
+  const el = $('#ans_' + itemId);
+  if (el && el.value.trim()) { await window.answerInbox(itemId, el.value.trim()); }
+};
+
+async function refreshInboxBadge() {
+  try {
+    const items = await get('/api/inbox');
+    const b = $('#inboxBadge');
+    if (b) b.innerHTML = items.length ? `<span class="pill s-blocked" style="font-size:10px">${items.length}</span>` : '';
+  } catch {}
+}
+
+async function refreshKillswitch() {
+  try {
+    const ks = await get('/api/killswitch');
+    const el = $('#killswitch');
+    if (!el) return;
+    if (ks.paused) {
+      el.innerHTML = `<div style="color:var(--red);font-size:12px;margin-bottom:6px">⏸ Paused</div>
+        <button class="ghost" style="width:100%" onclick="setPause(false)">▶ Resume agents</button>`;
+    } else {
+      el.innerHTML = `<button class="ghost" style="width:100%;color:var(--red)" onclick="setPause(true)">⏸ Halt all agents</button>`;
+    }
+  } catch {}
+}
+window.setPause = async function(paused) {
+  await post('/api/killswitch', {paused, reason: 'via dashboard'});
+  refreshKillswitch();
+};
+
+document.querySelectorAll('.nav a').forEach(a =>
+  a.addEventListener('click', () => render(a.dataset.view)));
+
+// ---------- Live SSE ----------
+function connectSSE() {
+  try {
+    const es = new EventSource(API + '/api/events');
+    es.onmessage = (m) => {
+      const ev = JSON.parse(m.data);
+      liveEvents.push(ev);
+      if (liveEvents.length > 200) liveEvents.shift();
+      const lf = $('#livefeed'); if (lf) lf.innerHTML = renderFeed();
+      // refresh runs/home if visible
+      const active = document.querySelector('.nav a.active')?.dataset.view;
+      if (ev.type === 'dispatch_done' || ev.type === 'workflow_done' || ev.type === 'step_done') {
+        if (active === 'home' || active === 'runs') render(active);
+      }
+    };
+    es.onerror = () => { es.close(); setTimeout(connectSSE, 3000); };
+  } catch {}
+}
+
+render('home');
+connectSSE();
+refreshInboxBadge();
+refreshKillswitch();
+setInterval(refreshInboxBadge, 5000);
+</script>
+</body>
+</html>

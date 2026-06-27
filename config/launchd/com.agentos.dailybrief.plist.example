@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AgentOS daily update — runs `agentos brief` at 8:00 AM local time.
+  Copy to com.agentos.dailybrief.plist and replace ~/agentos with your absolute path
+  (launchd does not expand ~). Then install:
+    cp config/launchd/com.agentos.dailybrief.plist ~/Library/LaunchAgents/
+    launchctl load -w ~/Library/LaunchAgents/com.agentos.dailybrief.plist
+  Remove:
+    launchctl unload -w ~/Library/LaunchAgents/com.agentos.dailybrief.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agentos.dailybrief</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>~/agentos/orchestrator/.venv/bin/agentos</string>
+    <string>brief</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>~/agentos/logs/dailybrief.log</string>
+  <key>StandardErrorPath</key>
+  <string>~/agentos/logs/dailybrief.err</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

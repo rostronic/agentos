@@ -1,0 +1,22 @@
+{
+  "//": "AgentOS Claude Code permissions template. Copy to .claude/settings.json (project-scoped, checked-in conventions) and/or .claude/settings.local.json (machine-local, gitignored) and tune the allowlist to the commands you trust to run without a prompt. Each entry is a Bash command prefix matcher (Bash(<prefix>:*)) or an MCP tool name. See https://docs.claude.com/en/docs/claude-code/settings for the full schema.",
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ci:*)",
+      "Bash(node:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(ruff check:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)"
+    ]
+  }
+}

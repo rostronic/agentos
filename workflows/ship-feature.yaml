@@ -1,0 +1,46 @@
+name: ship-feature
+description: Plan, implement, review, and document a feature end-to-end.
+inputs:
+  feature_description:
+    type: string
+    description: What feature to build
+    required: true
+
+steps:
+  - id: plan
+    agent: planner
+    prompt: |
+      Decompose this feature into a concrete task graph with acceptance criteria.
+
+      Feature: {{inputs.feature_description}}
+
+  - id: build
+    agent: developer
+    prompt: |
+      Implement the plan below. Write tests. Report what you changed.
+
+      Plan:
+      {{steps.plan.output}}
+
+  - id: review
+    agent: qa
+    prompt: |
+      Review the implementation below against the original plan. Give a PASS /
+      FAIL verdict with specifics.
+
+      Original plan:
+      {{steps.plan.output}}
+
+      Implementation:
+      {{steps.build.output}}
+
+  - id: document
+    agent: scribe
+    prompt: |
+      Write a changelog entry for the feature that was just built and reviewed.
+
+      What was built:
+      {{steps.build.output}}
+
+      Review verdict:
+      {{steps.review.output}}

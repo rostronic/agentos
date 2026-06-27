@@ -1,0 +1,36 @@
+name: plan-sprint
+description: Decompose a sprint goal into a concrete task list, then critique the plan.
+inputs:
+  goal:
+    type: string
+    description: The sprint goal to decompose into tasks
+    required: true
+  project:
+    type: string
+    description: The project (slug or id) this sprint belongs to
+    required: true
+
+steps:
+  - id: plan
+    agent: planner
+    prompt: |
+      Break the following sprint goal down into a concrete, ordered list of
+      tasks. For each task give: a short title, a one-line description, an
+      assignee (an agent name such as researcher/developer/qa, or 'human'),
+      a priority (high/medium/low), acceptance criteria, and any dependencies
+      on earlier tasks in the list. Keep tasks small and independently shippable.
+
+      Project: {{inputs.project}}
+      Sprint goal: {{inputs.goal}}
+
+  - id: critique
+    agent: critic
+    prompt: |
+      Review the proposed sprint plan below. Flag tasks that are too large,
+      missing dependencies, unclear acceptance criteria, or gaps that would
+      block the goal. List specific, actionable corrections.
+
+      Sprint goal: {{inputs.goal}}
+
+      Proposed plan:
+      {{steps.plan.output}}

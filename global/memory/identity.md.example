@@ -1,0 +1,19 @@
+---
+tier: global
+type: identity
+---
+# Identity & machine setup
+
+Generic template. Copy to `identity.md` and fill in your own details (the real
+`identity.md` is your private instance's; this `.example` ships with the framework).
+
+- User: **<your-handle>** (<you@example.com>). Personal values also live in
+  `config/user.yaml` (name, email, timezone, dirs) — keep the two in sync.
+- **Memory source of truth:** this `agentos` repo is provider-agnostic memory. The
+  agent host (e.g. Claude) is the current provider but may change — keep everything
+  here host-neutral.
+- **Machine:** note anything an agent should know about this machine's setup —
+  what is and isn't version-controlled, where session logs start, restored-from
+  state after a hardware swap, etc.
+- **Migrations / transitional state:** record any in-progress moves (harness swaps,
+  repo splits, path changes) so an agent doesn't assume stale layout.

@@ -1,0 +1,11 @@
+service.description,project.id,cost,credits,usage_start_time,currency,billing_account_id
+Cloud Run,example-shop-prod,30.00,-5.00,2026-05-03,USD,01ABCD-EFGH-IJKL
+Cloud Run,example-shop-prod,12.00,0,2026-05-18,USD,01ABCD-EFGH-IJKL
+Cloud Firestore,example-shop-prod,8.50,0,2026-05-10,USD,01ABCD-EFGH-IJKL
+Firebase Hosting,example-shop-prod,4.00,0,2026-05-12,USD,01ABCD-EFGH-IJKL
+Cloud Run,example-news-prod,20.00,-2.00,2026-05-05,USD,01ABCD-EFGH-IJKL
+Cloud Scheduler,example-news-prod,1.50,0,2026-05-06,USD,01ABCD-EFGH-IJKL
+Cloud Firestore,example-news-prod,6.00,0,2026-05-20,USD,01ABCD-EFGH-IJKL
+Cloud Run,example-shop-prod,18.00,0,2026-04-14,USD,01ABCD-EFGH-IJKL
+Cloud Run,mystery-app-prod,9.00,0,2026-05-09,USD,01ABCD-EFGH-IJKL
+Cloud Logging,mystery-app-prod,1.10,0,2026-05-22,USD,01ABCD-EFGH-IJKL

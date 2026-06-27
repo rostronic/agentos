@@ -1,0 +1,28 @@
+name: triage-inbox
+description: Turn a pile of incoming notes/requests into proposed, scoped tasks.
+inputs:
+  notes:
+    type: string
+    description: Raw incoming notes, emails, or requests to triage
+    required: true
+
+steps:
+  - id: triage
+    agent: planner
+    prompt: |
+      Triage the incoming notes below into a short list of concrete, actionable
+      tasks. For each: a clear title, one-line description, suggested agent
+      (researcher/developer/qa/scribe/analyst), and priority (high/medium/low).
+      Drop anything that isn't actionable.
+
+      Notes:
+      {{inputs.notes}}
+
+  - id: review
+    agent: critic
+    prompt: |
+      Review the proposed task list. Flag anything vague, duplicated, or
+      missing acceptance criteria. Return a cleaned-up final list.
+
+      Proposed tasks:
+      {{steps.triage.output}}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AgentOS dashboard — keeps `agentos serve` running at http://127.0.0.1:8787.
+  Copy to com.agentos.dashboard.plist and replace ~/agentos with your absolute path
+  (launchd does not expand ~). Then install:
+    cp config/launchd/com.agentos.dashboard.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.agentos.dashboard.plist
+  Remove:
+    launchctl bootout gui/$(id -u)/com.agentos.dashboard
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.agentos.dashboard</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>~/agentos/orchestrator/.venv/bin/agentos</string>
+    <string>serve</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>~/agentos/logs/dashboard.log</string>
+  <key>StandardErrorPath</key>
+  <string>~/agentos/logs/dashboard.err</string>
+</dict>
+</plist>
