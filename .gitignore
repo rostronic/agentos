@@ -80,3 +80,4 @@ workspaces/personal/college-baseball/cws_ui_*.jpg
 
 # Local Claude Code settings (machine-specific)
 .claude/settings.local.json
+workspaces/personal/mistress/

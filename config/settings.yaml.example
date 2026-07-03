@@ -17,10 +17,20 @@ orchestrator:
   # write a file. acceptEdits auto-approves file edits inside the task
   # worktree; shell commands stay gated except those allowlisted in the
   # target repo's committed .claude/settings.json (npm run, npx playwright, …).
+  # For a fully autonomous team (agents run shell: tests/builds/scripts) set
+  # this to bypassPermissions — only safe with worktree isolation + budget
+  # caps + a killswitch + a human prod-deploy gate.
   dispatch_permission_mode: acceptEdits
   # Tools pre-approved beyond acceptEdits. Researcher tasks need the web —
   # without these, WebSearch/WebFetch die at unanswerable prompts.
   dispatch_allowed_tools: [WebSearch, WebFetch]
+  # SDLC methodology system (see docs/methodologies.md) — defaults for any
+  # project without a per-project override below.
+  default_methodology: agile      # agile | xp | devops | waterfall
+  default_cadence: backlog        # backlog (continuous pull) | sprint (batched deliverable)
+  # 2-gate model: full = autonomous between the two human gates (plan-approval
+  # up front, prod-deploy at the end); qa/critic are agent-to-agent gates.
+  default_approval_mode: full
 
 # Per-project task store and settings
 # Overrides the global defaults for specific projects.
@@ -29,7 +39,9 @@ orchestrator:
 #   local    → legacy sqlite cache (work.sqlite)
 #   linear   → Linear adapter
 projects:
-  # Example:
-  # example-business:
-  #   task_store: linear
-  #   linear_team_id: TEAM_ABC123
+  # SDLC methodology per project (see docs/methodologies.md). Unlisted projects
+  # fall back to the orchestrator defaults above (agile / backlog). Examples:
+  # example-app:        { methodology: xp }                       # test-first + critic review
+  # example-site:       { methodology: devops }                   # + CI/smoke build-verify
+  # example-compliance: { methodology: waterfall, cadence: sprint }
+  # example-business:   { task_store: linear, linear_team_id: TEAM_ABC123 }

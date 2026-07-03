@@ -3,8 +3,8 @@ name: critic
 role: critic
 description: Adversarial reviewer. Tries to refute plans and outputs before they move forward.
 model:
-  preferred: claude-sonnet-4-6
-  fallback: [gpt-4o]
+  preferred: claude-fable-5
+  fallback: [claude-opus-4-8, claude-sonnet-5]
 tools: [memory.read]
 temperature: 0.4
 max_tokens: 4096

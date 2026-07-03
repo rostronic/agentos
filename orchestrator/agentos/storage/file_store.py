@@ -343,14 +343,28 @@ def link_run(task_id: str, run_id: str) -> None:
     update_task(task_id, last_run_id=run_id)
 
 
-def ready_tasks(sprint_id: str) -> list[dict]:
-    """Tasks in a sprint with status='ready' whose deps are all 'done'."""
+def ready_tasks(sprint_id: str | None = None, project_id: str | None = None) -> list[dict]:
+    """Ready tasks (status='ready') whose dependencies are all 'done'.
+
+    - ``sprint_id`` set  → tasks in that sprint (sprint cadence).
+    - ``sprint_id`` None → the **backlog**: tasks not attached to any sprint
+      (``sprint_id`` falsy); pass ``project_id`` to scope to one project
+      (continuous-backlog cadence).
+    """
     all_tasks = list_tasks()
     done_ids = {t["id"] for t in all_tasks if t.get("status") == "done"}
     out = []
     for task in all_tasks:
-        if task.get("sprint_id") != sprint_id or task.get("status") != "ready":
+        if task.get("status") != "ready":
             continue
+        if sprint_id is not None:
+            if task.get("sprint_id") != sprint_id:
+                continue
+        else:
+            if task.get("sprint_id"):  # backlog = unattached tasks only
+                continue
+            if project_id is not None and task.get("project_id") != project_id:
+                continue
         if all(dep in done_ids for dep in task.get("depends_on", [])):
             out.append(task)
     out.sort(key=lambda d: (d.get("created_at") or "", d.get("id") or ""))

@@ -492,6 +492,30 @@ def sprint_cmd(
     )
 
 
+@app.command("run-backlog")
+def run_backlog_cmd(
+    project: str = typer.Argument(..., help="Project slug to pull the backlog for"),
+    mode: str = typer.Option(None, "--mode", "-m", help="manual / semi / full (default per settings)"),
+    max_tasks: int = typer.Option(None, "--max-tasks", help="Cap tasks this run"),
+):
+    """Continuous-backlog cadence: pull and run the project's ready backlog tasks
+    (those with no sprint) through its configured methodology (docs/methodologies.md)."""
+    from agentos.core import config, methodology, sprint_executor
+
+    disc = methodology.get(config.methodology_for(project)).name
+    console.print(f"[bold]Running backlog[/bold] [cyan]{project}[/cyan] "
+                  f"[dim](methodology: {disc})[/dim]")
+    with console.status("[cyan]Pulling ready tasks…[/cyan]"):
+        res = sprint_executor.run_backlog(project, mode=mode, max_tasks=max_tasks)
+    for o in res.processed:
+        color = {"done": "green", "review": "yellow", "blocked": "red"}.get(o.final_status, "white")
+        console.print(f"  [{color}]{o.final_status}[/{color}] {o.title} [dim]({o.agent or '—'})[/dim]")
+    console.print(
+        f"\n[dim]Processed {len(res.processed)} tasks · {res.stopped_reason} · "
+        f"cost ${res.total_cost_usd:.4f}[/dim]"
+    )
+
+
 @app.command("inbox")
 def inbox_cmd(
     answer_id: str = typer.Option(None, "--answer", help="Inbox item id to answer"),
@@ -862,6 +886,46 @@ def work_migrate():
         f"inbox: [bold]{res['migrated_inbox']}[/bold] "
         f"([dim]{res['skipped']} skipped[/dim])"
     )
+
+
+@app.command("doctor")
+def doctor_cmd():
+    """Health/readiness check — is this AgentOS instance correctly set up?
+
+    Runs a checklist (config, credentials, tools, workspaces, agents/workflows) and
+    prints PASS/WARN/FAIL per item with a one-line fix hint. Exit 0 if nothing FAILed
+    (warnings are fine), nonzero if any check FAILed.
+    """
+    from agentos.core import doctor
+
+    report = doctor.run_checks()
+
+    glyph = {doctor.PASS: "[green]✓[/green]", doctor.WARN: "[yellow]![/yellow]",
+             doctor.FAIL: "[red]✗[/red]"}
+    tag = {doctor.PASS: "[green][PASS][/green]", doctor.WARN: "[yellow][WARN][/yellow]",
+           doctor.FAIL: "[red][FAIL][/red]"}
+
+    console.print("[bold cyan]agentos doctor[/bold cyan] — instance readiness\n")
+    width = max((len(c.name) for c in report.checks), default=0)
+    for c in report.checks:
+        line = f"  {glyph[c.status]} {tag[c.status]}  {c.name:<{width}}"
+        if c.detail:
+            line += f"  [dim]{c.detail}[/dim]"
+        console.print(line)
+        if c.status != doctor.PASS and c.fix:
+            console.print(f"        [dim]→ fix:[/dim] {c.fix}")
+
+    console.print(
+        f"\n[bold]{report.passed} passed, {report.warnings} warnings, "
+        f"{report.failed} failed.[/bold]"
+    )
+    if report.ok:
+        console.print("[green]Instance looks operational.[/green]"
+                      if report.warnings == 0 else
+                      "[green]Operational[/green] [dim](warnings are non-blocking).[/dim]")
+    else:
+        console.print("[red]Not ready — resolve the FAIL items above.[/red]")
+        raise typer.Exit(1)
 
 
 @app.command("version")

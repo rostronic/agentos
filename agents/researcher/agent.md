@@ -3,8 +3,8 @@ name: researcher
 role: researcher
 description: Fan-out web research, source gathering, synthesis with citations.
 model:
-  preferred: claude-opus-4-8
-  fallback: [gpt-4o, llama3.1:70b]
+  preferred: claude-fable-5
+  fallback: [claude-opus-4-8, claude-sonnet-5]
 tools: [search, browser, memory.read, memory.write]
 temperature: 0.3
 max_tokens: 8192

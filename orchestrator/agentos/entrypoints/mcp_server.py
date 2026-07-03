@@ -57,12 +57,37 @@ def list_workflows() -> list[dict[str, Any]]:
 
 @mcp.tool(
     description=(
-        "Dispatch a single AgentOS agent on a task. Returns the agent's response "
-        "plus a run_id. agent must be one of the names from list_agents."
+        "Dispatch a single AgentOS agent on a task. agent must be one of the names "
+        "from list_agents. By default (background=true) the run is launched in the "
+        "background and this returns immediately — poll recent_runs/get_run for the "
+        "result (real code+QA tasks routinely exceed the MCP request window). Pass "
+        "background=false to block and get the agent's full response inline (only "
+        "safe for quick tasks)."
     )
 )
-def dispatch(agent: str, task: str, project: str | None = None) -> dict[str, Any]:
+def dispatch(
+    agent: str, task: str, project: str | None = None, background: bool = True
+) -> dict[str, Any]:
     from agentos.core import router
+
+    if background:
+        import threading
+
+        threading.Thread(
+            target=router.dispatch,
+            args=(agent, task),
+            kwargs={"project": project, "triggered_by": "desktop"},
+            daemon=True,
+        ).start()
+        return {
+            "ok": True,
+            "status": "started",
+            "agent": agent,
+            "note": (
+                "Dispatched in the background. Poll recent_runs (limit=1) for the "
+                "run_id, then get_run(run_id) for status + output."
+            ),
+        }
 
     outcome = router.dispatch(agent, task, project=project, triggered_by="desktop")
     return {
@@ -193,8 +218,29 @@ def plan_project(project: str, goal: str) -> dict[str, Any]:
         "plan_project or list_sprints."
     )
 )
-def run_sprint(sprint_id: str, mode: str = "semi", max_tasks: int | None = None) -> dict[str, Any]:
+def run_sprint(
+    sprint_id: str, mode: str = "semi", max_tasks: int | None = None, background: bool = True
+) -> dict[str, Any]:
     from agentos.core import sprint_executor
+
+    if background:
+        import threading
+
+        threading.Thread(
+            target=sprint_executor.execute_sprint,
+            args=(sprint_id,),
+            kwargs={"mode": mode, "max_tasks": max_tasks},
+            daemon=True,
+        ).start()
+        return {
+            "ok": True,
+            "status": "started",
+            "sprint_id": sprint_id,
+            "note": (
+                "Sprint launched in the background. Poll recent_runs / get_run for "
+                "per-task progress. Pass background=false to block (quick sprints only)."
+            ),
+        }
 
     r = sprint_executor.execute_sprint(sprint_id, mode=mode, max_tasks=max_tasks)
     return {

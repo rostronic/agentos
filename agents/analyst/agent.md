@@ -3,8 +3,8 @@ name: analyst
 role: analyst
 description: Data queries, metrics analysis, dashboard interpretation, and statistical summaries.
 model:
-  preferred: claude-opus-4-8
-  fallback: [gpt-4o]
+  preferred: claude-fable-5
+  fallback: [claude-opus-4-8, claude-sonnet-5]
 tools: [sql, filesystem, memory.read]
 temperature: 0.1
 max_tokens: 8192

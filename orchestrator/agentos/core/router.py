@@ -98,7 +98,7 @@ def _model_chain(agent: dict) -> list[str]:
         chain = [model_spec.get("preferred")]
         chain.extend(model_spec.get("fallback", []))
         return [m for m in chain if m]
-    return ["claude-sonnet-4-6"]
+    return ["claude-sonnet-5"]
 
 
 def dispatch(

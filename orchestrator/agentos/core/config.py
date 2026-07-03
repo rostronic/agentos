@@ -152,7 +152,34 @@ def project_settings(project: str | None) -> dict[str, Any]:
     """Settings for a specific project, falling back to defaults."""
     if not project:
         return {}
-    return settings().get("projects", {}).get(project, {})
+    # `projects:` may be present-but-null in YAML → coalesce to {} before .get.
+    return (settings().get("projects") or {}).get(project, {})
+
+
+def methodology_for(project: str | None) -> str:
+    """Resolve the SDLC methodology (discipline) for a project.
+
+    Precedence: per-project ``settings.yaml::projects::<slug>::methodology`` →
+    global ``orchestrator.default_methodology`` → ``"agile"``.
+    """
+    per = project_settings(project).get("methodology")
+    if per:
+        return str(per)
+    glob = (settings().get("orchestrator") or {}).get("default_methodology")
+    return str(glob) if glob else "agile"
+
+
+def cadence_for(project: str | None) -> str:
+    """Resolve the cadence for a project (``sprint`` | ``backlog``).
+
+    Precedence: per-project ``settings.yaml::projects::<slug>::cadence`` →
+    global ``orchestrator.default_cadence`` → ``"backlog"``.
+    """
+    per = project_settings(project).get("cadence")
+    if per:
+        return str(per)
+    glob = (settings().get("orchestrator") or {}).get("default_cadence")
+    return str(glob) if glob else "backlog"
 
 
 def budget_for_project(project: str | None) -> dict[str, Any]:

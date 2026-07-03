@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agentos.core import ask_human, budget, config, killswitch, limits, router, run_store, worktree
+from agentos.core import ask_human, budget, config, killswitch, limits, methodology, router, run_store, worktree
 from agentos.core.config import project_settings
 from agentos.notify import notifier
 from agentos.storage import file_store as local_store
@@ -48,12 +48,19 @@ class SprintResult:
     total_cost_usd: float = 0.0
 
 
+def _default_approval_mode() -> str:
+    """Team default approval mode. The 2-gate model sets this to 'full' in
+    settings (autonomous between plan-approval and prod-deploy); falls back to
+    'manual' when unset."""
+    return str(config.settings().get("orchestrator", {}).get("default_approval_mode", "manual"))
+
+
 def _approval_mode(project_id: str | None) -> str:
     if not project_id:
-        return "manual"
+        return _default_approval_mode()
     proj = local_store.get_project(project_id)
     slug = proj.get("slug") if proj else None
-    return project_settings(slug).get("approval_mode", "manual")
+    return project_settings(slug).get("approval_mode") or _default_approval_mode()
 
 
 def _task_prompt(task: dict, extra: str = "") -> str:
@@ -93,9 +100,26 @@ def _qa_verdict(qa_text: str) -> bool:
     return "PASS" in up and "FAIL" not in up
 
 
+def _run_stage(stage: methodology.Stage, task: dict, project_slug: str | None,
+               workdir, prior: str = ""):
+    """Dispatch one methodology Stage (a pre- or post-implementation agent step)."""
+    instr = stage.instruction
+    if prior:
+        instr = f"{instr}\n\nContext from the prior step:\n{prior}"
+    return router.dispatch(
+        stage.role, _task_prompt(task, instr), project=project_slug,
+        triggered_by="sprint", task_id=task["id"],
+        workdir=str(workdir) if workdir else None,
+    )
+
+
 def _process_task(task: dict, mode: str, project_slug: str | None, repo_path: Path | None,
-                  sprint_id: str) -> tuple[TaskOutcome, float]:
-    """Dispatch one task through dev → QA, returning its outcome and cost."""
+                  sprint_id: str | None, strat: methodology.Methodology) -> tuple[TaskOutcome, float]:
+    """Run one task through the methodology's pipeline, returning its outcome and cost.
+
+    Pipeline: [pre-implementation stages] → implement → [QA gate] → [post-QA gate
+    stages]. `agile` (no pre/post stages, QA on) reproduces the original dev→QA flow.
+    """
     agent = task.get("assignee") or "developer"
     if agent == "human":
         # Human-assigned tasks aren't auto-dispatched; surface to inbox.
@@ -143,6 +167,14 @@ def _process_task(task: dict, mode: str, project_slug: str | None, repo_path: Pa
                   f"lives at {repo_path} — keep ALL file changes inside that directory, "
                   f"and commit your work there (git add/commit from the repo root).")
 
+    # Pre-implementation stages (e.g. XP/TDD: QA writes the failing tests first).
+    for stage in strat.pre_implementation_stages(task):
+        pre = _run_stage(stage, task, project_slug, workdir)
+        cost += pre.cost_usd
+        if pre.ok and pre.text:
+            extra += (f"\n\nA prior '{stage.kind}' step by {stage.role} produced:\n{pre.text}\n"
+                      "Build on it — e.g. implement until those tests pass.")
+
     outcome = router.dispatch(
         agent, _task_prompt(task, extra), project=project_slug,
         triggered_by="sprint", task_id=task["id"], workdir=str(workdir) if workdir else None,
@@ -171,73 +203,89 @@ def _process_task(task: dict, mode: str, project_slug: str | None, repo_path: Pa
 
     local_store.link_run(task["id"], outcome.run_id)
 
-    # QA loop — re-dispatch dev up to max_qa_retries on QA failure.
-    max_retries = limits.max_qa_retries(project_slug)
+    # QA gate — re-dispatch dev up to max_qa_retries on QA failure. Skippable per methodology.
     work = outcome.text
-    qa_passed = None
-    for attempt in range(max_retries + 1):
-        qa_out = router.dispatch(
-            "qa", _qa_prompt(task, work), project=project_slug,
-            triggered_by="sprint", task_id=task["id"], workdir=str(workdir) if workdir else None,
-        )
-        cost += qa_out.cost_usd
-        if not qa_out.ok:
-            break  # QA itself failed to run; treat as inconclusive
-        qa_passed = _qa_verdict(qa_out.text)
-        if qa_passed or attempt == max_retries:
-            break
-        # QA failed and retries remain — re-dispatch dev with the QA feedback.
-        redo = router.dispatch(
-            agent, _task_prompt(task, extra + f"\n\nQA feedback to address:\n{qa_out.text}"),
-            project=project_slug, triggered_by="sprint", task_id=task["id"], workdir=str(workdir) if workdir else None,
-        )
-        cost += redo.cost_usd
-        if redo.ok:
-            work = redo.text
-            local_store.link_run(task["id"], redo.run_id)
+    if strat.needs_qa:
+        max_retries = limits.max_qa_retries(project_slug)
+        qa_passed = None
+        for attempt in range(max_retries + 1):
+            qa_out = router.dispatch(
+                "qa", _qa_prompt(task, work), project=project_slug,
+                triggered_by="sprint", task_id=task["id"], workdir=str(workdir) if workdir else None,
+            )
+            cost += qa_out.cost_usd
+            if not qa_out.ok:
+                break  # QA itself failed to run; treat as inconclusive
+            qa_passed = _qa_verdict(qa_out.text)
+            if qa_passed or attempt == max_retries:
+                break
+            # QA failed and retries remain — re-dispatch dev with the QA feedback.
+            redo = router.dispatch(
+                agent, _task_prompt(task, extra + f"\n\nQA feedback to address:\n{qa_out.text}"),
+                project=project_slug, triggered_by="sprint", task_id=task["id"],
+                workdir=str(workdir) if workdir else None,
+            )
+            cost += redo.cost_usd
+            if redo.ok:
+                work = redo.text
+                local_store.link_run(task["id"], redo.run_id)
 
-    if qa_passed:
-        final = "done" if mode in _AUTO_DONE_MODES else "review"
-        local_store.update_task_status(task["id"], final)
-        return TaskOutcome(task["id"], task["title"], final, agent, outcome.run_id, True), cost
+        if not qa_passed:
+            local_store.update_task_status(task["id"], "blocked", reason="QA did not pass")
+            ask_human.file_question(
+                f"Task '{task['title']}' failed QA after {max_retries} retries. Needs review.",
+                kind="decision", from_agent="qa", task_id=task["id"], sprint_id=sprint_id,
+            )
+            return TaskOutcome(task["id"], task["title"], "blocked", agent, outcome.run_id, False,
+                               note="QA failed"), cost
 
-    local_store.update_task_status(task["id"], "blocked", reason="QA did not pass")
-    ask_human.file_question(
-        f"Task '{task['title']}' failed QA after {max_retries} retries. Needs review.",
-        kind="decision", from_agent="qa", task_id=task["id"], sprint_id=sprint_id,
-    )
-    return TaskOutcome(task["id"], task["title"], "blocked", agent, outcome.run_id, False,
-                       note="QA failed"), cost
+    # Post-QA gate stages (e.g. XP critic review; DevOps CI/smoke build-verify).
+    for stage in strat.post_qa_stages(task):
+        gate = _run_stage(stage, task, project_slug, workdir, prior=work)
+        cost += gate.cost_usd
+        if not gate.ok or not _qa_verdict(gate.text):
+            # stage.kind is literally "gate" for gate stages — don't render
+            # "developer gate gate failed"; label with the kind only when it
+            # adds information (e.g. "critic review gate failed").
+            gate_label = "gate" if stage.kind == "gate" else f"{stage.kind} gate"
+            local_store.update_task_status(
+                task["id"], "blocked", reason=f"{stage.role} {gate_label} failed")
+            ask_human.file_question(
+                f"Task '{task['title']}' failed the {stage.role} {gate_label}. Needs review.",
+                kind="decision", from_agent=stage.role, task_id=task["id"], sprint_id=sprint_id,
+            )
+            return TaskOutcome(task["id"], task["title"], "blocked", agent, outcome.run_id, True,
+                               note=f"{gate_label} failed"), cost
+
+    final = "done" if mode in _AUTO_DONE_MODES else "review"
+    local_store.update_task_status(task["id"], final)
+    return TaskOutcome(task["id"], task["title"], final, agent, outcome.run_id, True), cost
 
 
-def execute_sprint(sprint_id: str, *, mode: str | None = None,
-                   max_tasks: int | None = None) -> SprintResult:
-    """Run ready tasks in a sprint until none remain, the kill switch trips, the
-    budget is exhausted, or the task-count limit is hit."""
-    # Resolve the sprint's project for settings/budget scoping.
-    # (list_sprints needs a project_id, so find via tasks if needed.)
-    tasks_in_sprint = local_store.list_tasks(sprint_id=sprint_id)
-    project_id = tasks_in_sprint[0]["project_id"] if tasks_in_sprint else None
-    project = local_store.get_project(project_id) if project_id else None
-    project_slug = project.get("slug") if project else None
-    repo_path = None
+def _repo_path(project: dict | None) -> Path | None:
     if project and project.get("repo_path"):
         rp = Path(project["repo_path"]).expanduser()
         if not rp.is_absolute():
             rp = config.AGENTOS_ROOT / rp
-        repo_path = rp
+        return rp
+    return None
 
-    resolved_mode = mode or _approval_mode(project_id)
-    cap = limits.max_tasks_per_run(project_slug, override=max_tasks)
 
-    result = SprintResult(ok=True, sprint_id=sprint_id, mode=resolved_mode)
-    parent = run_store.Run(
-        workflow_name="execute-sprint", status="running",
-        inputs={"sprint_id": sprint_id, "mode": resolved_mode},
-        triggered_by="sprint", project=project_slug,
-    )
-    run_store.create_run(parent)
+def _project_by_slug(slug: str | None) -> dict | None:
+    if not slug:
+        return None
+    for p in local_store.list_projects():
+        if p.get("slug") == slug:
+            return p
+    return None
 
+
+def _run_loop(*, get_ready, strat, mode, project_slug, repo_path, sprint_id, cap, parent, result):
+    """Shared pull→process loop for both sprint and continuous-backlog cadence.
+
+    `get_ready` is a callable returning the currently-ready tasks; the methodology
+    chooses which to pick next via `order_ready_tasks`.
+    """
     processed = 0
     while processed < cap:
         if killswitch.is_paused():
@@ -248,19 +296,15 @@ def execute_sprint(sprint_id: str, *, mode: str | None = None,
             result.stopped_reason = f"budget: {block.detail}"
             break
 
-        ready = local_store.ready_tasks(sprint_id)
+        ready = get_ready()
         if not ready:
             result.stopped_reason = "no ready tasks"
             break
 
-        # Highest priority first (high > medium > low), then oldest.
-        order = {"high": 0, "medium": 1, "low": 2}
-        ready.sort(key=lambda t: (order.get(t.get("priority"), 1), t.get("created_at", "")))
-        task = ready[0]
-
+        task = strat.order_ready_tasks(ready)[0]
         run_store.append_event(parent.id, "task_start",
                                {"task_id": task["id"], "title": task["title"]})
-        outcome, cost = _process_task(task, resolved_mode, project_slug, repo_path, sprint_id)
+        outcome, cost = _process_task(task, mode, project_slug, repo_path, sprint_id, strat)
         result.processed.append(outcome)
         result.total_cost_usd += cost
         processed += 1
@@ -270,6 +314,8 @@ def execute_sprint(sprint_id: str, *, mode: str | None = None,
     if processed >= cap and not result.stopped_reason:
         result.stopped_reason = f"hit task limit ({cap})"
 
+
+def _finalize(parent, result: SprintResult, *, label: str) -> SprintResult:
     run_store.update_run(
         parent.id, status="done", ended_at=run_store._now(),
         cost_usd=result.total_cost_usd,
@@ -279,11 +325,66 @@ def execute_sprint(sprint_id: str, *, mode: str | None = None,
                            {"processed": len(result.processed), "reason": result.stopped_reason})
     # Notify on completion, and specifically if anything blocked needing the human.
     try:
-        notifier.sprint_done(sprint_id, len(result.processed), result.stopped_reason)
+        notifier.sprint_done(label, len(result.processed), result.stopped_reason)
         blocked = [o for o in result.processed if o.final_status == "blocked"]
         if blocked:
-            notifier.notify("agent_blocked", "Sprint needs you",
+            notifier.notify("agent_blocked", "Team run needs you",
                             f"{len(blocked)} task(s) blocked — check the inbox.")
     except Exception:  # noqa: BLE001 — notifications must never break a run
         pass
     return result
+
+
+def execute_sprint(sprint_id: str, *, mode: str | None = None,
+                   max_tasks: int | None = None) -> SprintResult:
+    """Run ready tasks in a sprint (sprint cadence) until none remain, the kill
+    switch trips, the budget is exhausted, or the task-count limit is hit."""
+    # Resolve the sprint's project for settings/budget scoping.
+    tasks_in_sprint = local_store.list_tasks(sprint_id=sprint_id)
+    project_id = tasks_in_sprint[0]["project_id"] if tasks_in_sprint else None
+    project = local_store.get_project(project_id) if project_id else None
+    project_slug = project.get("slug") if project else None
+    repo_path = _repo_path(project)
+
+    resolved_mode = mode or _approval_mode(project_id)
+    strat = methodology.get(config.methodology_for(project_slug))
+    cap = limits.max_tasks_per_run(project_slug, override=max_tasks)
+
+    result = SprintResult(ok=True, sprint_id=sprint_id, mode=resolved_mode)
+    parent = run_store.Run(
+        workflow_name="execute-sprint", status="running",
+        inputs={"sprint_id": sprint_id, "mode": resolved_mode, "methodology": strat.name},
+        triggered_by="sprint", project=project_slug,
+    )
+    run_store.create_run(parent)
+    _run_loop(get_ready=lambda: local_store.ready_tasks(sprint_id), strat=strat,
+              mode=resolved_mode, project_slug=project_slug, repo_path=repo_path,
+              sprint_id=sprint_id, cap=cap, parent=parent, result=result)
+    return _finalize(parent, result, label=sprint_id)
+
+
+def run_backlog(project_slug: str, *, mode: str | None = None,
+                max_tasks: int | None = None) -> SprintResult:
+    """Continuous-backlog cadence: repeatedly pull the next ready backlog task
+    (one with no sprint) for a project and run it through the project's
+    methodology, until none remain / kill switch / budget / task-count limit."""
+    project = _project_by_slug(project_slug)
+    project_id = project.get("id") if project else None
+    repo_path = _repo_path(project)
+
+    resolved_mode = mode or _approval_mode(project_id)
+    strat = methodology.get(config.methodology_for(project_slug))
+    cap = limits.max_tasks_per_run(project_slug, override=max_tasks)
+
+    label = f"backlog:{project_slug}"
+    result = SprintResult(ok=True, sprint_id=label, mode=resolved_mode)
+    parent = run_store.Run(
+        workflow_name="run-backlog", status="running",
+        inputs={"project": project_slug, "mode": resolved_mode, "methodology": strat.name},
+        triggered_by="sprint", project=project_slug,
+    )
+    run_store.create_run(parent)
+    _run_loop(get_ready=lambda: local_store.ready_tasks(project_id=project_id), strat=strat,
+              mode=resolved_mode, project_slug=project_slug, repo_path=repo_path,
+              sprint_id=None, cap=cap, parent=parent, result=result)
+    return _finalize(parent, result, label=label)

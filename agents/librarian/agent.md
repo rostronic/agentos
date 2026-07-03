@@ -4,7 +4,7 @@ role: librarian
 description: Curates memory. Surfaces relevant past context before agents start work.
 model:
   preferred: claude-haiku-4-5
-  fallback: [claude-sonnet-4-6]
+  fallback: [claude-sonnet-5]
 tools: [memory.read, memory.write, memory.search]
 temperature: 0.1
 max_tokens: 4096

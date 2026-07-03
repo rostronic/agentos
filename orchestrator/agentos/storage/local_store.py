@@ -279,13 +279,28 @@ def link_run(task_id: str, run_id: str) -> None:
         )
 
 
-def ready_tasks(sprint_id: str) -> list[dict]:
-    """Tasks in a sprint with status='ready' whose deps are all 'done'."""
+def ready_tasks(sprint_id: str | None = None, project_id: str | None = None) -> list[dict]:
+    """Ready tasks (status='ready') whose dependencies are all 'done'.
+
+    ``sprint_id`` set → that sprint; ``sprint_id`` None → the backlog (tasks with
+    no sprint), optionally scoped to ``project_id`` (continuous-backlog cadence).
+    """
     with _conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM tasks WHERE sprint_id = ? AND status = 'ready'",
-            (sprint_id,),
-        ).fetchall()
+        if sprint_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE sprint_id = ? AND status = 'ready'",
+                (sprint_id,),
+            ).fetchall()
+        elif project_id is not None:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE sprint_id IS NULL AND project_id = ? "
+                "AND status = 'ready'",
+                (project_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE sprint_id IS NULL AND status = 'ready'"
+            ).fetchall()
         done_ids = {
             r["id"]
             for r in conn.execute(

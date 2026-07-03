@@ -97,12 +97,18 @@ class ClaudeCodeProvider:
             cmd += ["--allowedTools", ",".join(self.allowed_tools)]
 
         try:
+            # stdin=DEVNULL is REQUIRED. Headless `claude -p` inspects stdin; if it
+            # inherits an open pipe (e.g. the MCP server's JSON-RPC stdin when a
+            # dispatch is driven from Claude Code), newer Claude Code blocks ~3s
+            # waiting for piped input and then fails ("no stdin data received in
+            # 3s"). The prompt comes solely from -p, so detach stdin explicitly.
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
                 cwd=workdir,
+                stdin=subprocess.DEVNULL,
             )
         except subprocess.TimeoutExpired as e:
             raise ProviderError(
@@ -174,6 +180,6 @@ def get_provider() -> Provider:
     timeout = int(orch.get("dispatch_timeout_seconds", 300))
     return ClaudeCodeProvider(
         timeout=timeout,
-        permission_mode=orch.get("dispatch_permission_mode"),
+        permission_mode=orch.get("dispatch_permission_mode", "acceptEdits"),
         allowed_tools=orch.get("dispatch_allowed_tools"),
     )

@@ -28,10 +28,10 @@ def test_all_expected_tools_registered():
     assert expected.issubset(registered), f"Missing: {expected - registered}"
 
 
-def test_list_agents_returns_eight():
+def test_list_agents_returns_full_roster():
     fn = _tool_fn("list_agents")
     agents = fn()
-    assert len(agents) == 8
+    assert len(agents) == 10  # 8 specialists + chief-of-staff + coordinator
     assert all("name" in a and "model" in a for a in agents)
     names = {a["name"] for a in agents}
     assert "researcher" in names
@@ -56,11 +56,35 @@ def test_dispatch_tool_delegates_to_router(monkeypatch):
         ),
     )
     fn = _tool_fn("dispatch")
-    result = fn(agent="researcher", task="hi")
+    # background=False blocks and returns the full inline result.
+    result = fn(agent="researcher", task="hi", background=False)
     assert result["ok"]
     assert result["run_id"] == "abc"
     assert result["output"] == "done"
     assert result["cost_usd"] == 0.02
+
+
+def test_dispatch_tool_background_returns_immediately(monkeypatch):
+    """Default background=True launches the run off-thread and returns a handle
+    instead of blocking the MCP request until the agent finishes."""
+    import threading
+
+    from agentos.core import router
+    from agentos.core.router import DispatchOutcome
+
+    started = threading.Event()
+
+    def _bg_dispatch(agent, task, **kw):
+        started.set()
+        return DispatchOutcome(ok=True, run_id="bg", text="done")
+
+    monkeypatch.setattr(router, "dispatch", _bg_dispatch)
+    fn = _tool_fn("dispatch")
+    result = fn(agent="researcher", task="hi")  # default background=True
+    assert result["ok"]
+    assert result["status"] == "started"
+    assert "run_id" not in result  # caller polls recent_runs/get_run instead
+    assert started.wait(timeout=2.0)  # the background thread actually ran dispatch
 
 
 def test_budget_status_tool(monkeypatch):
@@ -93,6 +117,6 @@ def test_full_protocol_roundtrip():
 
             result = await client.call_tool("list_agents", {})
             data = result.data if hasattr(result, "data") else result
-            assert len(data) == 8
+            assert len(data) == 10
 
     asyncio.run(run())

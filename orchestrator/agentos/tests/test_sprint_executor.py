@@ -208,6 +208,46 @@ def test_dispatch_failure_blocks_task(project_sprint, unlimited_budget, monkeypa
     assert local_store.get_task(t.id)["status"] == "blocked"
 
 
+def test_gate_failure_reason_has_no_doubled_word(project_sprint, unlimited_budget, monkeypatch):
+    """UX quick win #1 (docs/ux/2026-07-01-dashboard-ux-walkthrough.md #6/#1):
+    a failed post-QA gate stage must not render a doubled-word reason like
+    'developer gate gate failed'. Repro: the 'devops' methodology's
+    post_qa_stages() emits Stage(role='developer', kind='gate', ...) — the old
+    f'{stage.role} {stage.kind} gate failed' template always produced
+    '<role> gate gate failed' because stage.kind literally IS 'gate' for every
+    gate stage (see methodology.py post_qa_stages: critic/gate, developer/gate).
+    Checked in both places the walkthrough found the bug: the task's stored
+    status-history reason (surfaced in the description field / task history)
+    and the inbox question text."""
+    p, s = project_sprint
+    t = _add_task(p.id, s.id, title="Ship it")
+    monkeypatch.setattr(sprint_executor.config, "methodology_for", lambda project=None: "devops")
+
+    def disp(agent, prompt, **kw):
+        if agent == "qa":
+            return DispatchOutcome(ok=True, run_id="r", text="PASS — looks good", cost_usd=0.0)
+        if agent == "developer" and "CI checks" in prompt:
+            # The devops post-QA gate stage (Stage(role="developer", kind="gate")).
+            return DispatchOutcome(ok=True, run_id="r", text="FAIL — build broke", cost_usd=0.0)
+        return DispatchOutcome(ok=True, run_id="r", text="did the work", cost_usd=0.0)
+    _stub_dispatch(monkeypatch, disp)
+
+    sprint_executor.execute_sprint(s.id, mode="full")
+
+    task = local_store.get_task(t.id)
+    assert task["status"] == "blocked"
+    # get_task() composes status-history reasons into the description field
+    # (file_store._compose_description) — this is where the walkthrough saw
+    # "...in_progress -> blocked: developer gate gate failed" on task detail.
+    reason_text = task.get("description") or ""
+    assert "gate gate" not in reason_text, f"doubled 'gate' in task history: {reason_text!r}"
+    assert "gate failed" in reason_text  # still says *something* meaningful
+
+    inbox = local_store.list_inbox("open")
+    item = next(i for i in inbox if i["task_id"] == t.id)
+    assert "gate gate" not in item["prompt"], f"doubled 'gate' in inbox item: {item['prompt']!r}"
+
+
 def test_full_resume_cycle(project_sprint, unlimited_budget, monkeypatch):
     """End-to-end: pass 1 blocks + asks; human answers; pass 2 completes,
     with the answer injected into the dev prompt."""

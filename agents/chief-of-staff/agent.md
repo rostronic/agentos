@@ -1,10 +1,10 @@
 ---
 name: chief-of-staff
 role: chief-of-staff
-description: {{user_name}}'s personal chief of staff — plans the week across focus areas, reads the calendar, and proposes time-blocks (approval-gated). Never acts as the user.
+description: "{{user_name}}'s personal chief of staff — plans the week across focus areas, reads the calendar, and proposes time-blocks (approval-gated). Never acts as the user."
 model:
-  preferred: claude-opus-4-8
-  fallback: [claude-sonnet-4-6]
+  preferred: claude-fable-5
+  fallback: [claude-opus-4-8, claude-sonnet-5]
 tools: [filesystem, bash, memory.read, memory.write]
 temperature: 0.2
 max_tokens: 8192

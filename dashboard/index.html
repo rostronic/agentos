@@ -189,8 +189,20 @@ async function post(path, body) {
 }
 
 function pill(status) { return `<span class="pill s-${status}">${status}</span>`; }
+function plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
 function shortId(id) { return (id||'').slice(0,8); }
 function fmtTime(ts) { return (ts||'').slice(11,19); }
+/** Compact relative age ("3d" / "5h" / "12m") for an ISO timestamp; '' if absent/unparseable. */
+function fmtAge(ts) {
+  if (!ts) return '';
+  const ms = Date.now() - new Date(ts).getTime();
+  if (!isFinite(ms)) return '';
+  const m = Math.floor(Math.max(0, ms) / 60000);
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h';
+  return Math.floor(h / 24) + 'd';
+}
 
 // ---------- Views ----------
 const views = {
@@ -516,13 +528,12 @@ const views = {
         <td class="mono" style="white-space:nowrap">${fmtTs(j.next_run_at)}</td>
         <td>${errCell}</td>
       </tr>`;
-    }).join('') || '<tr><td colspan="7" class="empty">No cron jobs found. Expected $AGENTOS_CRON_DIR/jobs.json</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">No scheduled jobs yet. To connect a scheduler, set the <span class="mono">AGENTOS_CRON_DIR</span> environment variable to a directory containing a <span class="mono">jobs.json</span> — its jobs and their health will show up here.</td></tr>';
     const projTags = Object.entries(byProject).sort((a, b) => b[1] - a[1])
       .map(([p, n]) => `<span class="tag">${escapeHtml(p)} ${n}</span>`).join(' ');
     return `<h1>Pipelines</h1>
-      <div class="sub">Scheduled jobs across all projects AgentOS manages, from
-        <span class="mono">$AGENTOS_CRON_DIR</span> — read-only, local files only.
-        Did each job run, what's its last status, what failed?</div>
+      <div class="sub">Scheduled jobs across all projects AgentOS manages — read-only,
+        local files only. Did each job run, what's its last status, what failed?</div>
       <div class="kpis">
         <div class="kpi"><div class="v">${s.total || 0}</div><div class="l">Total jobs</div></div>
         <div class="kpi"><div class="v">${Object.keys(byProject).length}</div><div class="l">Projects</div></div>
@@ -555,7 +566,7 @@ const views = {
           <div style="margin-top:8px">
             ${p.slug?`<span class="tag">${escapeHtml(p.slug)}</span>`:''}
             ${p.repo_path?`<span class="tag mono">${escapeHtml(p.repo_path)}</span>`:''}
-            <span class="tag">${per[p.id]||0} tasks</span>
+            <span class="tag">${plural(per[p.id]||0, 'task')}</span>
           </div>
         </div>`).join('')}</div>`
       : '<div class="empty">No projects yet. Create one below.</div>';
@@ -595,17 +606,26 @@ const views = {
       <div class="card"><div class="empty">Inbox empty — no agents are waiting on you. 🎉</div></div>`;
     return `<h1>Inbox <span class="pill s-blocked">${items.length}</span></h1>
       <div class="sub">Agents paused on these. Answering re-readies the task for the next sprint pass.</div>
-      ${items.map(i => `<div class="card">
+      ${items.map(i => {
+        const age = fmtAge(i.created_at);
+        // Title links to the task detail (quick win 4: inbox items must not be dead ends).
+        // Backticks in this onclick keep the full task id inside one attribute quoting level.
+        const titleNav = i.task_id ? ` style="cursor:pointer" title="Open task" onclick="render(\`taskDetail\`,\`${i.task_id}\`)"` : '';
+        const idChip = i.task_id
+          ? `<span class="mono" style="color:var(--accent);cursor:pointer" onclick="render('taskDetail','${i.task_id}')">${shortId(i.task_id)}</span>`
+          : '';
+        return `<div class="card">
         <div class="row" style="justify-content:space-between">
-          <div><span class="tag">${i.kind}</span> <b>${i.from_agent||'agent'}</b></div>
-          <span class="mono" style="color:var(--muted)">${shortId(i.task_id||'')}</span>
+          <div${titleNav}><span class="tag">${i.kind}</span> <b>${i.from_agent||'agent'}</b></div>
+          <span class="mono" style="color:var(--muted)">${age ? `waiting ${age} · ` : ''}${idChip}</span>
         </div>
         <div style="margin:8px 0 10px">${escapeHtml(i.prompt)}</div>
         ${(i.options||[]).length ? `<div style="margin-bottom:8px">${i.options.map(o=>
           `<button class="ghost" style="margin-right:6px" onclick='answerInbox("${i.id}", ${JSON.stringify(o).replace(/'/g,"&#39;")})'>${escapeHtml(o)}</button>`).join('')}</div>` : ''}
         <div class="row"><input id="ans_${i.id}" placeholder="Type your answer…">
           <button onclick='answerInboxField("${i.id}")'>Answer</button></div>
-      </div>`).join('')}`;
+      </div>`;
+      }).join('')}`;
   },
 
   async tasks(projectId) {
@@ -967,7 +987,69 @@ window.tkSetPlan = function(plan){
 };
 
 // ---------- Router ----------
+// Hash routing: every screen gets a URL (#/dashboard, #/tasks/<id>, ...) so a
+// refresh keeps your place, the Back/Forward buttons work, and views are
+// bookmarkable/shareable (docs/ux/2026-07-01-dashboard-ux-walkthrough.md,
+// finding #1). The URL contract is pinned in dashboard/tests/hash-routing.test.mjs.
+
+/** Canonical hash URL for a (view, arg) pair. */
+function hashFor(view, arg) {
+  switch (view) {
+    case 'home':          return '#/dashboard';
+    case 'runDetail':     return '#/runs/' + encodeURIComponent(arg);
+    case 'taskDetail':    return '#/tasks/' + encodeURIComponent(arg);
+    case 'projectDetail': return '#/projects/' + encodeURIComponent(arg);
+    case 'board':         return arg ? '#/board?project=' + encodeURIComponent(arg) : '#/board';
+    case 'tasks':         return arg ? '#/tasks?project=' + encodeURIComponent(arg) : '#/tasks';
+    case 'briefings':     return arg ? '#/briefings/' + encodeURIComponent(arg) : '#/briefings';
+    // projects, runs, inbox, tokens, pipelines, seo, agents, workflows, costs, insights, feed
+    default:              return '#/' + view;
+  }
+}
+
+/** Inverse of hashFor: which (view, arg) does this hash point at?
+ *  Unknown routes fall back to the Dashboard — never a blank screen. */
+function routeFromHash(hash) {
+  const h = String(hash || '').replace(/^#\/?/, '');
+  const qi = h.indexOf('?');
+  const path = qi === -1 ? h : h.slice(0, qi);
+  const params = {};
+  (qi === -1 ? '' : h.slice(qi + 1)).split('&').forEach(pair => {
+    if (!pair) return;
+    const eq = pair.indexOf('=');
+    if (eq === -1) params[decodeURIComponent(pair)] = '';
+    else params[decodeURIComponent(pair.slice(0, eq))] = decodeURIComponent(pair.slice(eq + 1));
+  });
+  const segs = path.split('/').filter(Boolean);
+  const head = segs[0] || '';
+  const rest = segs.length > 1 ? decodeURIComponent(segs.slice(1).join('/')) : '';
+  switch (head) {
+    case '':
+    case 'dashboard': return {view: 'home'};
+    case 'runs':      return rest ? {view: 'runDetail', arg: rest} : {view: 'runs'};
+    case 'tasks':     return rest ? {view: 'taskDetail', arg: rest} : {view: 'tasks', arg: params.project || undefined};
+    case 'projects':  return rest ? {view: 'projectDetail', arg: rest} : {view: 'projects'};
+    case 'board':     return {view: 'board', arg: params.project || undefined};
+    case 'briefings': return {view: 'briefings', arg: rest || undefined};
+    case 'inbox': case 'tokens': case 'pipelines': case 'seo': case 'agents':
+    case 'workflows': case 'costs': case 'insights': case 'feed':
+      return {view: head};
+    default:          return {view: 'home'};
+  }
+}
+
+let routerBooted = false;
 async function render(view, arg) {
+  // Keep the URL in sync with the screen. pushState/replaceState change the
+  // hash WITHOUT firing hashchange, so render() never re-triggers itself via
+  // the listener below. The very first render replaces (no phantom history
+  // entry on load); later ones push, so Back/Forward walk the view history.
+  const target = hashFor(view, arg);
+  if (target && location.hash !== target) {
+    try { history[routerBooted ? 'pushState' : 'replaceState'](null, '', target); }
+    catch { location.hash = target; }
+  }
+  routerBooted = true;
   document.querySelectorAll('.nav a').forEach(a =>
     a.classList.toggle('active', a.dataset.view === view));
   const main = $('#main');
@@ -1056,7 +1138,16 @@ function connectSSE() {
   } catch {}
 }
 
-render('home');
+// Back/Forward (and hand-edited URLs) fire hashchange — re-render to match.
+window.addEventListener('hashchange', () => {
+  const r = routeFromHash(location.hash);
+  return render(r.view, r.arg); // returning the promise lets callers/tests await the re-render
+});
+
+// Boot into whatever the URL points at (refresh keeps place, links are
+// shareable); an empty or unknown hash lands on the Dashboard as before.
+const initialRoute = routeFromHash(location.hash);
+render(initialRoute.view, initialRoute.arg);
 connectSSE();
 refreshInboxBadge();
 refreshKillswitch();

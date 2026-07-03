@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from agentos.core import run_store
+from agentos.core import config, run_store
 from agentos.entrypoints.api_server import build_app
 
 
@@ -27,10 +27,44 @@ async def test_agents_endpoint(client):
     resp = await client.get("/api/agents")
     assert resp.status == 200
     agents = await resp.json()
-    assert len(agents) == 8
+    assert len(agents) == 10
     names = {a["name"] for a in agents}
     assert "researcher" in names
     assert all("system_prompt" in a for a in agents)
+
+
+async def test_agents_endpoint_renders_user_name_template(client, monkeypatch):
+    """UX quick win #2 (docs/ux/2026-07-01-dashboard-ux-walkthrough.md #10): the
+    Agents cards on the dashboard must not leak the raw `{{user_name}}` mustache
+    token. agents/chief-of-staff/agent.md and agents/coordinator/agent.md both
+    embed `{{user_name}}` in their `description` frontmatter — agent_loader.py
+    currently returns that field verbatim (no template rendering at all), which
+    is exactly the literal-string bug the walkthrough saw twice on the Agents
+    page. config.user_name() already exists for this purpose; the fix must
+    substitute its value wherever `{{user_name}}` appears in an agent's
+    description before /api/agents serves it."""
+    monkeypatch.setattr(config, "user_name", lambda: "Robert")
+    resp = await client.get("/api/agents")
+    agents = {a["name"]: a for a in await resp.json()}
+
+    assert "{{user_name}}" not in agents["chief-of-staff"]["description"]
+    assert "{{user_name}}" not in agents["coordinator"]["description"]
+    assert "Robert" in agents["chief-of-staff"]["description"]
+    assert "Robert" in agents["coordinator"]["description"]
+
+
+async def test_agents_endpoint_user_name_template_no_literal_braces_when_unset(client, monkeypatch):
+    """Edge case: an unconfigured install (config.user_name() == "") must still
+    render to something sane — never leave the raw `{{user_name}}` token in the
+    response, even with no name configured."""
+    monkeypatch.setattr(config, "user_name", lambda: "")
+    resp = await client.get("/api/agents")
+    agents = {a["name"]: a for a in await resp.json()}
+
+    assert "{{user_name}}" not in agents["chief-of-staff"]["description"]
+    assert "{{user_name}}" not in agents["coordinator"]["description"]
+    assert "{{" not in agents["chief-of-staff"]["description"]
+    assert "{{" not in agents["coordinator"]["description"]
 
 
 async def test_workflows_endpoint(client):

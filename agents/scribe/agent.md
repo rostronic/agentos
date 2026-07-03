@@ -3,8 +3,8 @@ name: scribe
 role: scribe
 description: Writes documentation, summaries, ADRs, changelogs, and postmortems.
 model:
-  preferred: claude-sonnet-4-6
-  fallback: [gpt-4o]
+  preferred: claude-sonnet-5
+  fallback: [claude-opus-4-8]
 tools: [filesystem, memory.read, memory.write]
 temperature: 0.3
 max_tokens: 8192
