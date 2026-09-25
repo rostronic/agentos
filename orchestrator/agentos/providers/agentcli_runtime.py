@@ -68,7 +68,7 @@ class AgentCliRuntimeProvider:
             cmd.extend(["--model", model])
 
         try:
-            proc = subprocess.run(  # noqa: S603
+            proc = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,

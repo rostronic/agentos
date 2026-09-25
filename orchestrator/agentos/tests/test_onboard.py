@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import types
 
-from agentos.core import config, onboard as ob
+from agentos.core import config
+from agentos.core import onboard as ob
 
 
 def _seed_central(d):

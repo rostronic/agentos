@@ -51,7 +51,7 @@ def test_methodology_for_resolution(monkeypatch):
     })
     assert config.methodology_for("foo") == "xp"      # per-project wins
     assert config.methodology_for("bar") == "devops"  # global default
-    monkeypatch.setattr(config, "settings", lambda: {})
+    monkeypatch.setattr(config, "settings", dict)
     assert config.methodology_for("bar") == "agile"   # hard fallback
 
 
@@ -62,7 +62,7 @@ def test_cadence_for_resolution(monkeypatch):
     })
     assert config.cadence_for("foo") == "backlog"
     assert config.cadence_for("bar") == "sprint"
-    monkeypatch.setattr(config, "settings", lambda: {})
+    monkeypatch.setattr(config, "settings", dict)
     assert config.cadence_for("bar") == "backlog"
 
 

@@ -100,7 +100,7 @@ def _aliases(slug: str, cfg: dict) -> list[str]:
 
 
 def _tokens(s: str) -> set[str]:
-    return set(t for t in re.split(r"[^a-z0-9]+", s.lower()) if t)
+    return {t for t in re.split(r"[^a-z0-9]+", s.lower()) if t}
 
 
 def discover(

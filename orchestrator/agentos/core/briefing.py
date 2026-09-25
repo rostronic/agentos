@@ -35,8 +35,8 @@ def _pipelines_section() -> str:
     s = loader.summary(jobs)
     erroring = [j for j in jobs if j.get("last_run_status") == "error"]
     out = [
-        f"- {s.get('enabled', 0)} enabled job(s) across "
-        f"{len(s.get('by_project', {}))} project(s); **{s.get('erroring', 0)} erroring**"
+        (f"- {s.get('enabled', 0)} enabled job(s) across "
+        f"{len(s.get('by_project', {}))} project(s); **{s.get('erroring', 0)} erroring**")
     ]
     for j in erroring[:8]:
         out.append(f"  - ⚠️ `{j.get('project', '')}/{j.get('name', '')}` — {j.get('last_error', 'error')}")
@@ -67,9 +67,9 @@ def _runs_section() -> str:
     s = run_store.stats()
     by = s.get("by_status", {})
     out = [
-        f"- {s.get('total_runs', 0)} total runs · {by.get('done', 0)} done, "
+        (f"- {s.get('total_runs', 0)} total runs · {by.get('done', 0)} done, "
         f"{by.get('failed', 0)} failed, {by.get('running', 0)} running · "
-        f"${s.get('total_cost_usd', 0):.2f} API spend"
+        f"${s.get('total_cost_usd', 0):.2f} API spend")
     ]
     for r in run_store.list_runs(limit=5, status="failed"):
         label = r.get("agent") or r.get("workflow_name") or "run"
@@ -142,7 +142,7 @@ def _weather_section() -> str:
 
     def _get(url: str):
         req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=6) as r:  # noqa: S310 (trusted gov URL)
+        with urllib.request.urlopen(req, timeout=6) as r:
             return json.load(r)
 
     pts = _get(f"https://api.weather.gov/points/{lat},{lon}")

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -47,7 +47,7 @@ ORDER BY invoice_month DESC, net_cost_usd DESC
 
 def _since_month(lookback_months: int) -> str:
     """'YYYYMM' string `lookback_months` before the current month."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     total = now.year * 12 + (now.month - 1) - lookback_months
     y, m = divmod(total, 12)
     return f"{y:04d}{m + 1:02d}"

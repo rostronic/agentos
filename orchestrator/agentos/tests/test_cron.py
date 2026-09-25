@@ -8,11 +8,10 @@ import pytest
 
 from agentos.core import cron
 
-
 # 2026-06-03 is a Wednesday.
-WED_8AM = datetime(2026, 6, 3, 8, 0)
-WED_830 = datetime(2026, 6, 3, 8, 30)
-MON_9AM = datetime(2026, 6, 1, 9, 0)  # Monday
+WED_8AM = datetime(2026, 6, 3, 8, 0)  # noqa: DTZ001
+WED_830 = datetime(2026, 6, 3, 8, 30)  # noqa: DTZ001
+MON_9AM = datetime(2026, 6, 1, 9, 0)  # Monday  # noqa: DTZ001
 
 
 def test_every_minute():
@@ -25,13 +24,13 @@ def test_specific_time():
 
 
 def test_step_minutes():
-    assert cron.cron_matches("*/15 * * * *", datetime(2026, 6, 3, 8, 15))
-    assert not cron.cron_matches("*/15 * * * *", datetime(2026, 6, 3, 8, 7))
+    assert cron.cron_matches("*/15 * * * *", datetime(2026, 6, 3, 8, 15))  # noqa: DTZ001
+    assert not cron.cron_matches("*/15 * * * *", datetime(2026, 6, 3, 8, 7))  # noqa: DTZ001
 
 
 def test_range_hours():
-    assert cron.cron_matches("0 9-17 * * *", datetime(2026, 6, 3, 13, 0))
-    assert not cron.cron_matches("0 9-17 * * *", datetime(2026, 6, 3, 20, 0))
+    assert cron.cron_matches("0 9-17 * * *", datetime(2026, 6, 3, 13, 0))  # noqa: DTZ001
+    assert not cron.cron_matches("0 9-17 * * *", datetime(2026, 6, 3, 20, 0))  # noqa: DTZ001
 
 
 def test_weekday_name():
@@ -40,8 +39,8 @@ def test_weekday_name():
 
 
 def test_list_field():
-    assert cron.cron_matches("0 8,12,18 * * *", datetime(2026, 6, 3, 12, 0))
-    assert not cron.cron_matches("0 8,12,18 * * *", datetime(2026, 6, 3, 15, 0))
+    assert cron.cron_matches("0 8,12,18 * * *", datetime(2026, 6, 3, 12, 0))  # noqa: DTZ001
+    assert not cron.cron_matches("0 8,12,18 * * *", datetime(2026, 6, 3, 15, 0))  # noqa: DTZ001
 
 
 def test_invalid_expr_raises():

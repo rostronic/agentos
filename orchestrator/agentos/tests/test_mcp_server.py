@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 
-
 from agentos.entrypoints import mcp_server
 
 

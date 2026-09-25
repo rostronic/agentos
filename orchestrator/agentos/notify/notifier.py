@@ -51,7 +51,7 @@ def _send_push(title: str, message: str) -> bool:
         subprocess.run(
             ["osascript", "-e",
              f'display notification "{safe_msg}" with title "AgentOS" subtitle "{safe_title}"'],
-            capture_output=True, timeout=5,
+            capture_output=True, timeout=5, check=False,
         )
         return True
     except (FileNotFoundError, subprocess.SubprocessError):

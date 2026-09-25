@@ -32,7 +32,7 @@ HAPPENED_STATUSES = ("created", "approved")
 
 def current_week(date_str: str | None = None) -> str:
     """ISO week label ``YYYY-Www`` — mirrors ``weekly_plan.current_week``."""
-    d = datetime.date.fromisoformat(date_str) if date_str else datetime.date.today()
+    d = datetime.date.fromisoformat(date_str) if date_str else datetime.date.today()  # noqa: DTZ011
     iso = d.isocalendar()
     return f"{iso[0]}-W{iso[1]:02d}"
 

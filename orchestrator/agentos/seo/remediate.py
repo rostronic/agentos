@@ -88,7 +88,7 @@ def issue_key(area: str, detail: str) -> str:
     normalized = re.sub(r"crawled\s+[—-]+", "", normalized)
     normalized = re.sub(r"\d+", "#", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
-    digest = hashlib.sha1(f"{area}|{normalized}".encode("utf-8")).hexdigest()[:8]
+    digest = hashlib.sha1(f"{area}|{normalized}".encode()).hexdigest()[:8]
     return f"seo-{_slugify(area)}-{digest}"
 
 

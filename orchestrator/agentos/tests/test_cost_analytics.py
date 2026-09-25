@@ -6,8 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from agentos.cost_analytics import aggregator, mapping, store
-from agentos.cost_analytics import loaders
+from agentos.cost_analytics import aggregator, loaders, mapping, store
 from agentos.cost_analytics.loaders import claude, gcp, thirdparty
 
 FIXTURES = Path(__file__).parent / "fixtures"

@@ -10,7 +10,7 @@ Amounts are rounded to 2 decimals at this boundary; the store keeps full precisi
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from agentos.cost_analytics import mapping, store
 
@@ -18,7 +18,7 @@ UNMAPPED = "unmapped"
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _r2(x: float) -> float:

@@ -7,7 +7,6 @@ processes (CLI, dashboard, cron all see the same state).
 
 from __future__ import annotations
 
-
 from agentos.core.config import AGENTOS_ROOT
 
 RUNTIME_DIR = AGENTOS_ROOT / "orchestrator" / "runtime"

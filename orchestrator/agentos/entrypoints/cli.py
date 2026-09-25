@@ -163,7 +163,7 @@ def dispatch(
 @app.command("run")
 def run_workflow_cmd(
     workflow: str = typer.Argument(..., help="Workflow name (e.g. deep-research)"),
-    arg: list[str] = typer.Option([], "--arg", "-a", help="Workflow input as key=value"),
+    arg: list[str] = typer.Option([], "--arg", "-a", help="Workflow input as key=value"),  # noqa: B008
     project: str = typer.Option(None, "--project", "-p", help="Project for budget scoping"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate workflow, don't run"),
 ):
@@ -674,10 +674,11 @@ def brief_cmd(
 ):
     """Generate today's daily update (digest → file + macOS notification)."""
     import datetime
+
     from agentos.core import briefing
     from agentos.notify import notifier
 
-    date_str = datetime.date.today().isoformat()
+    date_str = datetime.date.today().isoformat()  # noqa: DTZ011
     text = briefing.build_briefing(date_str=date_str)
     path = briefing.write_briefing(text, date_str=date_str)
     console.print(f"[green]Daily update →[/green] {path}")
@@ -747,10 +748,11 @@ def day_end_cmd(
 ):
     """Evening shutdown — write today's review + tomorrow's top-3 (chief-of-staff)."""
     import datetime
+
     from agentos.core import day_end
     from agentos.notify import notifier
 
-    date_str = date or datetime.date.today().isoformat()
+    date_str = date or datetime.date.today().isoformat()  # noqa: DTZ011
     res = day_end.run_day_end(date_str)
     if res.get("errors"):
         console.print(f"[yellow]Shutdown finished with warnings:[/yellow] {res['errors']}")
@@ -823,9 +825,8 @@ def link_cmd():
     """Regenerate the symlink farm: projects/<slug> → repo_path for every split
     project (repo outside the monorepo). Skips projects whose memory still lives
     centrally (a real directory) — migrate memory into the repo first."""
-    from pathlib import Path
-
     import os
+    from pathlib import Path
 
     from agentos.core import config
 

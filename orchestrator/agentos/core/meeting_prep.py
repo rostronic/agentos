@@ -35,7 +35,7 @@ _SKIP_EVENT_TYPES = {"outOfOffice", "focusTime", "workingLocation"}
 
 
 def _today() -> datetime.date:
-    return datetime.date.today()
+    return datetime.date.today()  # noqa: DTZ011
 
 
 def _prep_dir() -> Path:
@@ -56,7 +56,7 @@ def _fetch_events(start: datetime.date, end_inclusive: datetime.date) -> list[di
         "--order", "asc", "--max", "50", "--json",
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
     except Exception:  # noqa: BLE001 — gog missing / blocked / timeout
         return []
     if proc.returncode != 0 or not proc.stdout.strip():
@@ -106,7 +106,7 @@ def _gmail_context(query: str, *, max_results: int = 3) -> list[str]:
         "--max", str(max_results), "--json",
     ]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
     except Exception:  # noqa: BLE001
         return []
     if proc.returncode != 0 or not proc.stdout.strip():

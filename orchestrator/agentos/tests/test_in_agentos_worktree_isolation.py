@@ -45,8 +45,8 @@ from agentos.storage.task_store import Project, Sprint, Task
 
 @pytest.fixture
 def unlimited_budget(monkeypatch):
-    from agentos.core import budget
     import agentos.core.limits as limits_mod
+    from agentos.core import budget
     monkeypatch.setattr(budget, "budget_for_project", lambda project=None: {})
     monkeypatch.setattr(limits_mod, "budget_for_project", lambda project=None: {})
 
@@ -102,10 +102,9 @@ def test_in_agentos_task_workdir_is_never_the_raw_repo_root(
     the literal AGENTOS_ROOT — that is the "unsandboxed shell at the live repo
     root" the finding describes. Accept either an isolated worktree path or a
     workdir confined to the project's own subdir; reject the raw root."""
-    from agentos.core import config
 
     root, project_dir = in_agentos_git_repo
-    p, s, t = _make_in_agentos_task(project_dir)
+    _p, s, t = _make_in_agentos_task(project_dir)
 
     seen = {}
 
@@ -134,10 +133,9 @@ def test_in_agentos_task_gets_worktree_isolation(
     in-agentos projects) rather than silently skipping worktree creation the
     way the current code does. This test is the direct negation of
     test_in_agentos_project_runs_in_place_no_worktree's `pytest.fail` guard."""
-    from agentos.core import config
 
-    root, project_dir = in_agentos_git_repo
-    p, s, t = _make_in_agentos_task(project_dir)
+    _root, project_dir = in_agentos_git_repo
+    _p, s, _t = _make_in_agentos_task(project_dir)
 
     calls = []
     real_create_worktree = sprint_executor.worktree.create_worktree
@@ -165,7 +163,7 @@ def test_in_agentos_task_isolated_workdir_reused_across_dev_and_qa(
     """Dev and QA dispatches for the same task must share the same isolated
     workdir (so QA reviews the same on-disk state dev produced) — mirrors the
     existing guarantee for split (~/dev) repos."""
-    p, s, t = _make_in_agentos_task(in_agentos_git_repo[1])
+    _p, s, _t = _make_in_agentos_task(in_agentos_git_repo[1])
 
     seen = {}
 
@@ -190,10 +188,11 @@ def test_in_agentos_task_workdir_confined_under_project_or_worktrees_dir(
     sibling path that happens to also live under AGENTOS_ROOT but outside both
     (which would indicate a half-applied guard)."""
     from pathlib import Path
-    from agentos.core import config, worktree
 
-    root, project_dir = in_agentos_git_repo
-    p, s, t = _make_in_agentos_task(project_dir)
+    from agentos.core import worktree
+
+    _root, project_dir = in_agentos_git_repo
+    _p, s, _t = _make_in_agentos_task(project_dir)
 
     seen = {}
 

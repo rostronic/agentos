@@ -19,7 +19,7 @@ functions collectively satisfy the `TaskStore` Protocol in task_store.py.
 from __future__ import annotations
 
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,7 @@ WORK_DIR = config.AGENTOS_ROOT / "work"
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # --------------------------------------------------------------------------- #
@@ -79,8 +79,7 @@ def _read_doc(path: Path) -> tuple[dict, str]:
         if end != -1:
             fm_text = text[4:end]
             body = text[end + 4:]
-            if body.startswith("\n"):
-                body = body[1:]
+            body = body.removeprefix("\n")
             fm = yaml.safe_load(fm_text) or {}
             return fm, body.lstrip("\n")
     return {}, text

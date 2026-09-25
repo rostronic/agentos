@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import types
 
-from agentos.core import config, plan_project as pp
+from agentos.core import config
+from agentos.core import plan_project as pp
 from agentos.storage import file_store as local_store
 
 PLAN_JSON = """```json

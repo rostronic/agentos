@@ -228,7 +228,7 @@ def dispatch(
                 from agentos.notify import notifier
                 cap = budget_for_project(project).get("daily_usd", 0)
                 notifier.budget_threshold(crossed, budget.today_spend(), cap)
-        except Exception:  # noqa: BLE001 — never break a dispatch on notify failure
+        except Exception:  # noqa: BLE001, S110
             pass
         run_store.update_run(
             run.id,

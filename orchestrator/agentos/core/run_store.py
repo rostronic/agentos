@@ -11,7 +11,7 @@ import json
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from agentos.core.config import AGENTOS_ROOT
@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_events_run ON run_events(run_id);
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _conn() -> sqlite3.Connection:

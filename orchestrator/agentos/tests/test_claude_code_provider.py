@@ -113,8 +113,7 @@ def test_rate_limit_is_retryable(monkeypatch):
 
 def test_router_defaults_to_claude_code(monkeypatch):
     """With default settings, the router should pick the claude_code backend."""
-    from agentos.core import router
-    from agentos.core import config
+    from agentos.core import config, router
 
     monkeypatch.setattr(
         config, "settings",
@@ -125,8 +124,7 @@ def test_router_defaults_to_claude_code(monkeypatch):
 
 
 def test_router_respects_claude_api_setting(monkeypatch):
-    from agentos.core import router
-    from agentos.core import config
+    from agentos.core import config, router
 
     monkeypatch.setattr(
         config, "settings",

@@ -61,7 +61,7 @@ class OllamaProvider:
             headers={"Content-Type": "application/json"},
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # noqa: S310
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read())
         except urllib.error.URLError as e:
             raise ProviderError(
@@ -69,7 +69,7 @@ class OllamaProvider:
                 "Is it running? Try: ollama serve",
                 retryable=True,
             ) from e
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise ProviderError(f"Ollama dispatch failed: {e}") from e
 
         if data.get("error"):

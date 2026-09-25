@@ -145,6 +145,7 @@ class ClaudeCodeProvider:
                 timeout=self.timeout,
                 cwd=workdir,
                 stdin=subprocess.DEVNULL,
+                check=False,
                 # env= is REQUIRED (security): explicit allowlist so .env
                 # credentials in os.environ never reach the dispatched agent.
                 env=_scrubbed_env(),
@@ -153,7 +154,7 @@ class ClaudeCodeProvider:
             raise ProviderError(
                 f"Claude Code timed out after {self.timeout}s", retryable=True
             ) from e
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             raise ProviderError(f"Failed to run Claude Code: {e}") from e
 
         if proc.returncode != 0:

@@ -53,7 +53,7 @@ class ClaudeProvider:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-        except Exception as e:  # noqa: BLE001 — normalize all SDK errors
+        except Exception as e:
             retryable = "rate_limit" in str(e).lower() or "overloaded" in str(e).lower()
             raise ProviderError(f"Claude dispatch failed: {e}", retryable=retryable) from e
 

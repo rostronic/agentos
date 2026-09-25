@@ -88,7 +88,7 @@ def due_schedules(when: datetime, schedules: list[dict] | None = None) -> list[d
 def run_due(when: datetime | None = None, *, dry_run: bool = False) -> list[dict]:
     """Fire all due schedules. Returns a summary per fired schedule."""
     from agentos.core import workflow_runner
-    when = when or datetime.now()
+    when = when or datetime.now()  # noqa: DTZ005
     results = []
     for s in due_schedules(when):
         entry = {"name": s.get("name"), "workflow": s.get("workflow"), "dry_run": dry_run}

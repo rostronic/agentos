@@ -20,7 +20,7 @@ from agentos.core import config
 
 
 def current_week(date_str: str | None = None) -> str:
-    d = datetime.date.fromisoformat(date_str) if date_str else datetime.date.today()
+    d = datetime.date.fromisoformat(date_str) if date_str else datetime.date.today()  # noqa: DTZ011
     iso = d.isocalendar()
     return f"{iso[0]}-W{iso[1]:02d}"
 
@@ -114,7 +114,7 @@ def apply(week: str, *, dry_run: bool = True) -> dict:
             planned.append(" ".join(shlex.quote(c) for c in cmd))
             continue
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
         except Exception as ex:  # noqa: BLE001
             failed.append((e.get("proposal_id", "?"), str(ex)))
             continue

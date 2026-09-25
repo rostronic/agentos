@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from datetime import UTC
+from typing import Any
 
 from agentos.core import router, run_store
 from agentos.core.config import AGENTOS_ROOT
@@ -69,8 +71,8 @@ class JsonlLogger:
         self.path = LOGS_DIR / f"{run_id}.jsonl"
 
     def log(self, event_type: str, **data: Any) -> None:
-        from datetime import datetime, timezone
-        record = {"ts": datetime.now(timezone.utc).isoformat(), "type": event_type, **data}
+        from datetime import datetime
+        record = {"ts": datetime.now(UTC).isoformat(), "type": event_type, **data}
         with self.path.open("a") as f:
             f.write(json.dumps(record) + "\n")
 

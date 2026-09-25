@@ -41,7 +41,7 @@ def test_create_worktree_makes_branch_and_dir(git_repo):
     assert (wt / "README.md").exists()  # worktree has repo contents
     branches = subprocess.run(
         ["git", "branch", "--list", "agent/task-123"],
-        cwd=git_repo, capture_output=True, text=True,
+        cwd=git_repo, capture_output=True, text=True, check=False,
     ).stdout
     assert "agent/task-123" in branches
 

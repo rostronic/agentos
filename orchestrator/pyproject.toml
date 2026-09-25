@@ -23,7 +23,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-mock>=3.12.0",
-    "ruff>=0.4.0",
+    "ruff==0.16.9",
 ]
 mcp = [
     "fastmcp>=0.4.0",
@@ -38,6 +38,10 @@ packages = ["agentos"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# ruff is version-pinned in the `dev` extra (an unpinned `ruff>=…` kept pulling a stricter
+# linter and reddening CI). Intentional per-site exceptions use inline `# noqa: <code>` at the
+# call site, matching this codebase's existing convention (naive/local datetimes on a
+# single-user system, deliberate best-effort excepts, the Typer `= Option(...)` default idiom).
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

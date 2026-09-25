@@ -155,7 +155,7 @@ def run_day_end(date_str: str) -> dict:
         try:
             tomorrow = datetime.date.fromisoformat(date_str) + datetime.timedelta(days=1)
         except Exception:  # noqa: BLE001
-            tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+            tomorrow = datetime.date.today() + datetime.timedelta(days=1)  # noqa: DTZ011
         tomorrow_str = tomorrow.isoformat()
         tomorrow_blocks = _blocks_on(tomorrow_str)
         result["tomorrow_count"] = len(tomorrow_blocks)

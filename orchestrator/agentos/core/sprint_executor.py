@@ -15,7 +15,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from agentos.core import ask_human, budget, config, killswitch, limits, methodology, router, run_store, worktree
+from agentos.core import (
+    ask_human,
+    budget,
+    config,
+    killswitch,
+    limits,
+    methodology,
+    router,
+    run_store,
+    worktree,
+)
 from agentos.core.config import project_settings
 from agentos.notify import notifier
 from agentos.storage import file_store as local_store
@@ -350,7 +360,7 @@ def _finalize(parent, result: SprintResult, *, label: str) -> SprintResult:
         if blocked:
             notifier.notify("agent_blocked", "Team run needs you",
                             f"{len(blocked)} task(s) blocked — check the inbox.")
-    except Exception:  # noqa: BLE001 — notifications must never break a run
+    except Exception:  # noqa: BLE001, S110
         pass
     return result
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import urllib.request
-from typing import Callable
+from collections.abc import Callable
 
 from agentos.core.config import get_api_key
 
@@ -55,7 +55,7 @@ def _default_http(query: str, variables: dict, api_key: str) -> dict:
         LINEAR_API, data=body,
         headers={"Authorization": api_key, "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 

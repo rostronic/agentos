@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from agentos.core.config import AGENTOS_ROOT
@@ -91,7 +91,7 @@ CREATE INDEX IF NOT EXISTS idx_inbox_task ON inbox(task_id);
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _conn() -> sqlite3.Connection:
@@ -345,7 +345,7 @@ def stats() -> dict:
 # --------------------------------------------------------------------------- #
 # Inbox — human-in-the-loop questions from agents
 # --------------------------------------------------------------------------- #
-import uuid as _uuid  # noqa: E402
+import uuid as _uuid
 
 
 def create_inbox_item(

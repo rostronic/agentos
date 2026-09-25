@@ -37,7 +37,7 @@ def load_agent(agent_dir: Path) -> dict[str, Any] | None:
         meta["system_prompt"] = _render_template(post.content.strip())
         meta.setdefault("name", agent_dir.name)
         return meta
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"[warn] Could not parse {spec_file}: {e}")
         return None
 

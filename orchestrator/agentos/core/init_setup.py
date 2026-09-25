@@ -113,8 +113,8 @@ def provider_status(provider: str, config_dir: Path | None = None) -> tuple[bool
             return True, "`claude` CLI found on PATH (subscription billing)."
         return (
             False,
-            "`claude` CLI not found on PATH. Install Claude Code and run `claude` "
-            "then `/login` with your Max/Pro account — or switch to claude_api.",
+            ("`claude` CLI not found on PATH. Install Claude Code and run `claude` "
+            "then `/login` with your Max/Pro account — or switch to claude_api."),
         )
     if provider == "claude_api":
         key = _api_key_present(config_dir)
@@ -122,8 +122,8 @@ def provider_status(provider: str, config_dir: Path | None = None) -> tuple[bool
             return True, "ANTHROPIC_API_KEY is set (metered API billing)."
         return (
             False,
-            "ANTHROPIC_API_KEY not set. Add it to config/credentials/.env "
-            "(copy from .env.example) or export it in your shell.",
+            ("ANTHROPIC_API_KEY not set. Add it to config/credentials/.env "
+            "(copy from .env.example) or export it in your shell."),
         )
     return True, f"Provider '{provider}' selected (no readiness check)."
 

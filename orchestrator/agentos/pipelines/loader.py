@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 CRON_DIR = Path(
@@ -59,7 +59,7 @@ def _epoch_ms_to_iso(ms) -> str | None:
         return None
     try:
         return (
-            datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
+            datetime.fromtimestamp(ms / 1000, tz=UTC)
             .isoformat(timespec="seconds")
         )
     except (TypeError, ValueError, OSError):

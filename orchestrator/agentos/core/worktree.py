@@ -21,7 +21,7 @@ WORKTREES_DIR = AGENTOS_ROOT / "worktrees"
 
 def _run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=60
+        ["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=60, check=False
     )
 
 
