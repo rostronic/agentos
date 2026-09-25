@@ -3,8 +3,8 @@ name: planner
 role: planner
 description: Decomposes goals into concrete task graphs with acceptance criteria and agent assignments.
 model:
-  preferred: claude-fable-5
-  fallback: [claude-opus-4-8, claude-sonnet-5]
+  preferred: claude-opus-4-8
+  fallback: [claude-sonnet-5]
 tools: [memory.read, memory.write]
 temperature: 0.2
 max_tokens: 8192

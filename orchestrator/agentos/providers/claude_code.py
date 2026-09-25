@@ -23,6 +23,7 @@ reporting.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 
@@ -35,6 +36,41 @@ _MODEL_ALIAS = {
     "claude-sonnet": "sonnet",
     "claude-haiku": "haiku",
 }
+
+# SECURITY — dispatched `claude` subprocesses must NOT inherit the orchestrator's
+# environment. config._load_env() exports every credential in
+# config/credentials/.env (API keys, bot tokens, SMTP password, webhook URLs)
+# into os.environ, and task prompts are free-text with shell access
+# (bypassPermissions), so an inherited secret is one `env` command away from
+# exfiltration (finding #1b, docs/reviews/2026-07-01-fable-code-review.md).
+#
+# This is an ALLOWLIST, not a denylist: only vars the CLI needs to run are
+# forwarded; everything else — including secrets we never thought to name — is
+# dropped. ANTHROPIC_API_KEY is deliberately absent: the CLI authenticates via
+# subscription OAuth in the keychain (see module docstring), not the API key.
+_ENV_ALLOWLIST = frozenset({
+    "PATH",              # binary/tool resolution
+    "HOME",              # CLI config + keychain access
+    "USER", "LOGNAME", "SHELL", "TMPDIR", "TERM", "LANG", "TZ",
+    "SSH_AUTH_SOCK",     # git-over-ssh in worktrees
+    "AGENTOS_ROOT",      # framework root override — a path, not a secret
+    "CLAUDE_CONFIG_DIR", # relocated CLI config, needed to find the login
+})
+_ENV_ALLOWED_PREFIXES = ("LC_",)  # locale family
+
+
+def _scrubbed_env() -> dict[str, str]:
+    """Allowlisted copy of os.environ for the child process.
+
+    Builds a fresh dict for the subprocess `env=` kwarg — never mutates the
+    orchestrator's own os.environ (the notifier etc. still read secrets from it
+    in-process after a dispatch returns).
+    """
+    return {
+        k: v
+        for k, v in os.environ.items()
+        if k in _ENV_ALLOWLIST or k.startswith(_ENV_ALLOWED_PREFIXES)
+    }
 
 
 def _to_cli_model(model: str) -> str:
@@ -109,6 +145,9 @@ class ClaudeCodeProvider:
                 timeout=self.timeout,
                 cwd=workdir,
                 stdin=subprocess.DEVNULL,
+                # env= is REQUIRED (security): explicit allowlist so .env
+                # credentials in os.environ never reach the dispatched agent.
+                env=_scrubbed_env(),
             )
         except subprocess.TimeoutExpired as e:
             raise ProviderError(

@@ -3,8 +3,8 @@ name: qa
 role: qa
 description: Reviews code changes, verifies tests pass, finds regressions.
 model:
-  preferred: claude-sonnet-5
-  fallback: [claude-opus-4-8]
+  preferred: claude-opus-4-8
+  fallback: [claude-sonnet-5]
 tools: [filesystem, git, shell, memory.read]
 temperature: 0.1
 max_tokens: 8192

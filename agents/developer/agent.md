@@ -3,8 +3,8 @@ name: developer
 role: developer
 description: Writes, edits, and tests code. Handles git operations and PRs.
 model:
-  preferred: claude-fable-5
-  fallback: [claude-opus-4-8, claude-sonnet-5]
+  preferred: claude-opus-4-8
+  fallback: [claude-sonnet-5]
 tools: [filesystem, git, shell, memory.read]
 temperature: 0.1
 max_tokens: 16384

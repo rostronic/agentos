@@ -54,10 +54,16 @@ def test_passing_task_full_mode_marked_done(project_sprint, unlimited_budget, mo
     assert res.processed[0].qa_passed is True
 
 
-def test_in_agentos_project_runs_in_place_no_worktree(unlimited_budget, monkeypatch):
-    """REGRESSION: a project whose repo_path is inside the agentos repo (personal
-    projects at workspaces/personal/<slug>) must run in place — never get a
-    worktree (which previously rooted on the wrong repo)."""
+def test_in_agentos_project_worktree_rooted_at_agentos_repo(unlimited_budget, monkeypatch):
+    """A project whose repo_path is inside the agentos repo (personal projects at
+    workspaces/personal/<slug>) gets an isolated worktree too — SECURITY finding
+    #1a (docs/reviews/2026-07-01-fable-code-review.md): running in place gave
+    bypassPermissions agents an unsandboxed shell at the live repo root.
+
+    The worktree must be created against config.AGENTOS_ROOT — the actual git
+    root for these projects — never the project subdir or a repo discovered
+    from the session CWD (the original wrong-repo bug this special case was
+    guarding against)."""
     from agentos.core import config
     repo = str(config.AGENTOS_ROOT / "workspaces" / "personal" / "demo")
     p = Project(name="Demo", slug="demo", repo_path=repo)
@@ -66,9 +72,14 @@ def test_in_agentos_project_runs_in_place_no_worktree(unlimited_budget, monkeypa
     local_store.create_sprint(s)
     t = _add_task(p.id, s.id, assignee="developer")
 
-    # Fail loudly if a worktree is ever created for an in-agentos project.
-    monkeypatch.setattr(sprint_executor.worktree, "create_worktree",
-                        lambda *a, **k: pytest.fail("worktree created for in-agentos project"))
+    wt_calls = []
+    fake_wt = config.AGENTOS_ROOT / "worktrees" / "demo" / t.id
+
+    def fake_create_worktree(repo_path, project_slug, task_id):
+        wt_calls.append((repo_path, project_slug, task_id))
+        return fake_wt
+
+    monkeypatch.setattr(sprint_executor.worktree, "create_worktree", fake_create_worktree)
     seen = {}
 
     def disp(agent, prompt, **kw):
@@ -78,9 +89,39 @@ def test_in_agentos_project_runs_in_place_no_worktree(unlimited_budget, monkeypa
     _stub_dispatch(monkeypatch, disp)
 
     sprint_executor.execute_sprint(s.id, mode="full")
-    # Runs from the agentos REPO ROOT (so .claude/settings.json command
-    # allowlists resolve and the agent can git commit), not the subdir.
-    assert seen["developer"] == str(config.AGENTOS_ROOT)
+    # Worktree rooted at the agentos repo itself (its real git root)…
+    assert wt_calls == [(config.AGENTOS_ROOT, "demo", t.id)]
+    # …and every dispatch runs in the worktree, NEVER the raw repo root.
+    assert seen["developer"] == str(fake_wt)
+    assert seen["qa"] == str(fake_wt)
+    assert local_store.get_task(t.id)["status"] == "done"
+
+
+def test_in_agentos_project_worktree_failure_confines_to_project_subdir(
+    unlimited_budget, monkeypatch
+):
+    """If worktree creation fails for an in-agentos project, the workdir falls
+    back to the project's own subdir — never the raw AGENTOS_ROOT."""
+    from agentos.core import config
+    repo = str(config.AGENTOS_ROOT / "workspaces" / "personal" / "demo2")
+    p = Project(name="Demo2", slug="demo2", repo_path=repo)
+    local_store.create_project(p)
+    s = Sprint(project_id=p.id, name="S", status="active")
+    local_store.create_sprint(s)
+    t = _add_task(p.id, s.id, assignee="developer")
+
+    monkeypatch.setattr(sprint_executor.worktree, "create_worktree", lambda *a, **k: None)
+    seen = {}
+
+    def disp(agent, prompt, **kw):
+        seen[agent] = kw.get("workdir")
+        return DispatchOutcome(ok=True, run_id="r",
+                               text="PASS" if agent == "qa" else "done", cost_usd=0.0)
+    _stub_dispatch(monkeypatch, disp)
+
+    sprint_executor.execute_sprint(s.id, mode="full")
+    assert seen["developer"] == repo
+    assert seen["developer"] != str(config.AGENTOS_ROOT)
     assert local_store.get_task(t.id)["status"] == "done"
 
 

@@ -131,41 +131,61 @@ def _process_task(task: dict, mode: str, project_slug: str | None, repo_path: Pa
         return TaskOutcome(task["id"], task["title"], "blocked", note="human-assigned"), 0.0
 
     # Projects that live INSIDE the agentos repo (e.g. personal projects at
-    # workspaces/personal/<slug>) must NOT be worktree-isolated: a worktree of
-    # the orchestrator repo to edit one subdir is wrong, and git-root discovery
-    # from the session CWD has rooted such worktrees in the wrong repo entirely
-    # (a past bug rooted such worktrees on the wrong repo). Run those in place instead.
+    # workspaces/personal/<slug>) get a worktree of the AGENTOS repo itself —
+    # that IS their git root. The worktree is created against an explicit
+    # config.AGENTOS_ROOT (never git-root discovery from the session CWD, which
+    # once rooted such worktrees in the wrong repo).
+    #
+    # SECURITY: these tasks previously ran in place with workdir == the raw
+    # AGENTOS_ROOT — with dispatch_permission_mode: bypassPermissions that was
+    # an unsandboxed shell over the live ~/agentos checkout for every
+    # task-description-driven agent (finding #1a,
+    # docs/reviews/2026-07-01-fable-code-review.md). The workdir must NEVER be
+    # the raw repo root: worktree first, project subdir as the fallback.
     in_agentos = False
+    project_rel = None
     if repo_path:
         try:
-            repo_path.resolve().relative_to(config.AGENTOS_ROOT.resolve())
+            project_rel = repo_path.resolve().relative_to(config.AGENTOS_ROOT.resolve())
             in_agentos = True
         except ValueError:
             in_agentos = False
 
     wt = None
     # Every agent that might produce files needs a workdir into the repo, not just
-    # developer/qa — researcher/analyst/scribe/planner write docs too. On split
-    # (~/dev) repos that means a worktree for ALL agents; in-agentos projects run
-    # in place (handled below). (Was dev/qa-only → analyst/scribe deliverables had
+    # developer/qa — researcher/analyst/scribe/planner write docs too. That means
+    # a worktree for ALL agents. (Was dev/qa-only → analyst/scribe deliverables had
     # nowhere to land, 2026-06-12.)
-    if repo_path and not in_agentos:
-        wt = worktree.create_worktree(repo_path, project_slug or "project", task["id"])
-    # In-agentos projects run from the REPO ROOT, not the project subdir:
-    # Claude Code resolves .claude/settings.json (the command allowlist that
-    # permits git add/commit) from the session's cwd — launching in a subdir
-    # leaves agents unable to commit (vehicles sprints, 2026-06-12).
-    workdir = wt or (config.AGENTOS_ROOT if (repo_path and in_agentos) else None)
+    if repo_path:
+        wt = worktree.create_worktree(
+            config.AGENTOS_ROOT if in_agentos else repo_path,
+            project_slug or "project", task["id"],
+        )
+    if wt:
+        workdir = wt
+    elif repo_path and in_agentos:
+        # Worktree creation failed — confine the agent to the project's own
+        # subdir. Never fall back to the raw repo root.
+        workdir = repo_path
+    else:
+        workdir = None
 
     local_store.update_task_status(task["id"], "in_progress")
     cost = 0.0
     extra = ask_human.answered_context(task["id"])
-    if wt:
+    if wt and in_agentos:
+        # The worktree root mirrors the agentos repo root, so .claude/settings.json
+        # (the command allowlist that permits git add/commit) still resolves from
+        # the session's cwd (vehicles sprints, 2026-06-12).
+        extra += (f"\n\nWork in this directory: {wt} (an isolated worktree of the agentos "
+                  f"repo). This task's project lives at {wt / project_rel} — keep ALL file "
+                  f"changes inside that subdirectory, and commit your work "
+                  f"(git add/commit from the worktree root {wt}).")
+    elif wt:
         extra += f"\n\nWork in this directory: {wt}"
     elif workdir:
-        extra += (f"\n\nYou are in the agentos repo root ({workdir}). This task's project "
-                  f"lives at {repo_path} — keep ALL file changes inside that directory, "
-                  f"and commit your work there (git add/commit from the repo root).")
+        extra += (f"\n\nWork in this directory: {workdir} — keep ALL file changes "
+                  f"inside it.")
 
     # Pre-implementation stages (e.g. XP/TDD: QA writes the failing tests first).
     for stage in strat.pre_implementation_stages(task):
