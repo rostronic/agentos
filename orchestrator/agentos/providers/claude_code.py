@@ -26,6 +26,7 @@ import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 from agentos.providers.base import DispatchResult, Provider, ProviderError
 from agentos.providers.pricing import cost_usd as compute_cost
@@ -36,6 +37,9 @@ _MODEL_ALIAS = {
     "claude-sonnet": "sonnet",
     "claude-haiku": "haiku",
 }
+
+# Per-run settings that disable interactive-only mods in headless runs.
+HEADLESS_SETTINGS = Path.home() / "agentos" / "config" / "claude" / "headless-settings.json"
 
 # SECURITY — dispatched `claude` subprocesses must NOT inherit the orchestrator's
 # environment. config._load_env() exports every credential in
@@ -125,6 +129,10 @@ class ClaudeCodeProvider:
             "--model", cli_model,
             "--output-format", "json",
         ]
+        # Headless runs can't answer interactive mods (Blast Radius holds risky Bash
+        # for a button press and would stall the run), so switch those off per run.
+        if HEADLESS_SETTINGS.exists():
+            cmd += ["--settings", str(HEADLESS_SETTINGS)]
         if system_prompt:
             cmd += ["--system-prompt", system_prompt]
         if self.permission_mode:

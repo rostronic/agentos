@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "blast-radius@claude-code-playground-mods": false,
+    "cc-plugin-you-should-know@builtin": false
+  }
+}

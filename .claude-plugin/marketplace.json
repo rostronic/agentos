@@ -1,0 +1,84 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agentos-mods",
+  "description": "Claude Code mods recommended by AgentOS, pinned to reviewed commits. Anthropic-authored first; third-party entries are labelled and pinned, never vendored.",
+  "owner": {
+    "name": "AgentOS"
+  },
+  "plugins": [
+    {
+      "name": "token-weather",
+      "description": "Context-window forecast above the prompt: fill %, tokens, sparkline of recent turns. Read-only.",
+      "author": {
+        "name": "Anthropic (Claude Code DevRel sample)"
+      },
+      "category": "mods",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/anthropics/claude-code-playground.git",
+        "path": "claude-code/mods/token-weather",
+        "sha": "569c5283d9a0a7ee7938df85bb32e4f48cbb8c86"
+      },
+      "homepage": "https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods/token-weather"
+    },
+    {
+      "name": "replay-theater",
+      "description": "/replay steps through the file edits Claude made in the last turn, one diff at a time. Never blocks.",
+      "author": {
+        "name": "Anthropic (Claude Code DevRel sample)"
+      },
+      "category": "mods",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/anthropics/claude-code-playground.git",
+        "path": "claude-code/mods/replay-theater",
+        "sha": "569c5283d9a0a7ee7938df85bb32e4f48cbb8c86"
+      },
+      "homepage": "https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods/replay-theater"
+    },
+    {
+      "name": "blast-radius",
+      "description": "Holds risky shell commands (rm -rf, reset --hard, force push\u2026) and shows what they would change. INTERACTIVE ONLY: disable it for headless claude -p runs (see mods/README.md).",
+      "author": {
+        "name": "Anthropic (Claude Code DevRel sample)"
+      },
+      "category": "mods",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/anthropics/claude-code-playground.git",
+        "path": "claude-code/mods/blast-radius",
+        "sha": "569c5283d9a0a7ee7938df85bb32e4f48cbb8c86"
+      },
+      "homepage": "https://github.com/anthropics/claude-code-playground/tree/main/claude-code/mods/blast-radius"
+    },
+    {
+      "name": "savvy-progress",
+      "description": "THIRD-PARTY (JohnnyVizz, MIT). Live panel of subagents with model, progress and estimated usage; /agents-info.",
+      "author": {
+        "name": "JohnnyVizz"
+      },
+      "category": "mods",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/JohnnyVizz/claude-kit.git",
+        "path": "plugins/savvy-progress",
+        "sha": "272a877f39b6971690e087b16a7cc3951b811e39"
+      },
+      "homepage": "https://github.com/JohnnyVizz/claude-kit/tree/main/plugins/savvy-progress"
+    },
+    {
+      "name": "skins",
+      "description": "THIRD-PARTY (hellosverre, MIT). Seven live themes for what Claude Code draws; /skin <name>. Does a small update-check fetch to raw.githubusercontent.com.",
+      "author": {
+        "name": "hellosverre"
+      },
+      "category": "mods",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/hellosverre/claude-skins.git",
+        "sha": "0abe0f34ea9e351c529151f6729e018d7e4a2648"
+      },
+      "homepage": "https://github.com/hellosverre/claude-skins"
+    }
+  ]
+}
