@@ -81,3 +81,8 @@ workspaces/personal/college-baseball/cws_ui_*.jpg
 # Local Claude Code settings (machine-specific)
 .claude/settings.local.json
 workspaces/personal/mistress/
+
+# Dashboard loader (scheduler/jobs/dashboard_loader): local venv + data output/master history
+scheduler/jobs/dashboard_loader/.venv/
+scheduler/jobs/dashboard_loader/__pycache__/
+/data/dashboard/
